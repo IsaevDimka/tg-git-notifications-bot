@@ -1,5 +1,9 @@
 # tg-git-notifications-bot
 
+[![ci](https://github.com/IsaevDimka/tg-git-notifications-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaevDimka/tg-git-notifications-bot/actions/workflows/ci.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+**Website:** https://isaevdimka.github.io/tg-git-notifications-bot/ · [Русская версия](README.ru.md)
+
 A self-hosted Telegram bot that makes sure you never miss a code review on **GitLab** or **GitHub**.
 It messages you when it's *your move* — so nobody has to ping you by hand.
 

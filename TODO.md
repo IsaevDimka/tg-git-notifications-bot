@@ -3,9 +3,29 @@
 Индекс задач. Номера 15–31 — пункты из `docs/specs/2026-09-24-design.md` §5.
 
 ## Ближайшее
-- [ ] **D1 · Деплой на do-ams3-claude-01 (188.166.91.129)** — docker compose рядом с tg-claude-bot, named volume,
-  `.env` с токеном бота; после деплоя выставить `MR_POLL_INTERVAL=0` в tg-claude-bot, чтобы не было дублей.
-- [ ] **D2 · Релиз v0.1.0** — push в origin и тег после ревью владельца; GitHub Actions соберёт образ в ghcr.io.
+- [x] **D2a · Код в GitHub** — v0.1 (#1) и v0.2 (#3) смёржены в `master`, CI зелёный.
+- [ ] **D2b · Релизные теги** — `v0.1.0` и `v0.2.0` → GitHub Actions соберёт образ `ghcr.io/isaevdimka/tg-git-notifications-bot` (amd64/arm64). Без тега `docker run …:latest` из README не сработает.
+- [ ] **D1 · Деплой на do-ams3-claude-01 (188.166.91.129)** — `make up` рядом с tg-claude-bot, named volume, `.env` с токеном бота; после деплоя выставить `MR_POLL_INTERVAL=0` в tg-claude-bot, чтобы не было дублей.
+- [ ] **L1 · Лендинг на GitHub Pages** — `landing/index.html` + `.github/workflows/pages.yml`; включить Pages → Source: GitHub Actions.
+
+## Продвижение (open source)
+- [ ] **P1 · Карточка репозитория** — description, website, topics (`telegram-bot`, `gitlab`, `github`, `code-review`, `self-hosted`, `notifications`), social preview (картинка 1280×640).
+- [ ] **P2 · OG-картинка для лендинга** — превью ссылки в Telegram/Twitter (сейчас без картинки).
+- [ ] **P3 · Демо-GIF в README** — 10–15 секунд: уведомление → «Ответить» → ответ появился в GitLab.
+- [ ] **P4 · Посты** — Хабр («как мы перестали пинговать друг друга по ревью»), Telegram-каналы про DevOps/GitLab, r/selfhosted, r/gitlab; awesome-selfhosted / awesome-telegram-bots.
+- [ ] **P5 · CONTRIBUTING.md + issue-шаблоны** — как добавить свой Git-хостинг (Gitea/Forgejo — один файл в `app/providers/`).
+- [ ] **P6 · Своё доменное имя** (опционально) — `landing/CNAME` + DNS CNAME на `isaevdimka.github.io`.
+
+## Долг (из ревью v0.1/v0.2, подробно — ledger `.superpowers/sdd/…/progress.md`)
+- [ ] Миграции без транзакции — сбой посреди ALTER ломает рестарт.
+- [ ] «Токен не работает» считается в `/inbox` как упоминание; старые мёртвые токены до апгрейда не получают уведомление.
+- [ ] Отредактированные `/mute` и `/invite` срабатывают повторно (нужен `UpdateType.MESSAGE` у команд).
+- [ ] Кнопки `/mute` и `/watch` адресуют строку по индексу — старое сообщение может задеть другую строку.
+- [ ] Вечерняя сводка не приходит, если её время внутри тихих часов.
+- [ ] Повторный Approve в GitLab показывает «токен не работает» (401 на уже одобренном MR).
+- [ ] Сетевые таймауты опроса пишутся в лог с полным трейсбеком.
+- [ ] Отклонённый Telegram-токен печатается в трейсбеке PTB при старте.
+- [ ] GitHub: `reviewThreads(first:100)` и поиск без пагинации — на очень больших PR часть данных теряется.
 
 ## v0.2 — «не пропустить» + «не пинговать руками»
 
@@ -39,6 +59,4 @@
 - [ ] 24 · `/load` — нагрузка ревьюеров
 - [ ] 25 · `/stats` — личная статистика ревью
 - [ ] 26 · Пятничный отчёт
-- [ ] 27 · Draft → Ready как событие
-- [ ] 28 · CI-фейл на моей ветке
-- [ ] 31 · `/export` / `/import` конфига
+- [ ] 27 · Draft → Ready как событие (частично: запрос ревью приходит при снятии черновика)
