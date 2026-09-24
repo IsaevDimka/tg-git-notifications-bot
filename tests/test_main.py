@@ -1,0 +1,52 @@
+import os
+import time
+
+from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
+
+from app import health
+from app.i18n import t
+from app.main import COMMANDS, build_app
+from tests.tg import make_cfg
+
+# One sample of every callback_data family the bot emits (keyboards in Tasks 8–12).
+SAMPLE_CALLBACKS = [
+    "ob:gl", "ob:tz:UTC", "adm:ok:1", "a:read:1", "a:sz:1:2h", "mr:rev", "ib:all", "ib:r:0",
+    "st:k:mention", "acc:add", "acc:rm!:1",
+]
+
+
+def _handlers(app):
+    return [h for group in app.handlers.values() for h in group]
+
+
+def test_every_command_is_registered():
+    app = build_app(make_cfg(telegram_token="123456:TEST"))
+    commands = {c for h in _handlers(app) if isinstance(h, CommandHandler) for c in h.commands}
+    assert set(COMMANDS) <= commands
+
+
+def test_every_callback_family_has_exactly_one_handler():
+    app = build_app(make_cfg(telegram_token="123456:TEST"))
+    patterns = [h.pattern for h in _handlers(app) if isinstance(h, CallbackQueryHandler)]
+    for data in SAMPLE_CALLBACKS:
+        assert sum(1 for p in patterns if p.match(data)) == 1, data
+
+
+def test_free_text_handler_registered():
+    app = build_app(make_cfg(telegram_token="123456:TEST"))
+    assert any(isinstance(h, MessageHandler) for h in _handlers(app))
+
+
+def test_every_command_has_a_menu_description():
+    for lang in ("ru", "en"):
+        for command in COMMANDS:
+            assert t(lang, f"cmd.{command}") != f"cmd.{command}"
+
+
+def test_health_follows_heartbeat(tmp_path):
+    assert not health.check(tmp_path)
+    health.beat(tmp_path)
+    assert health.check(tmp_path)
+    stale = time.time() - 600
+    os.utime(tmp_path / "heartbeat", (stale, stale))
+    assert not health.check(tmp_path)
