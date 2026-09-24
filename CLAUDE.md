@@ -11,8 +11,8 @@ Spec: `docs/specs/2026-09-24-design.md`. Plan: `docs/plans/2026-09-24-v0.1-mvp.m
 - `workflow.md` and `.env` hold real secrets — never commit or print them.
 
 ## Commands
-- `uv sync` · `uv run pytest -q` · `uv run ruff check .`
-- Local run: `set -a; source .env; set +a; uv run python -m app`
+- `make help` — all targets. Dev: `make check` (ruff + pytest), `make run` (local, ./data).
+- Server: `make up` / `logs` / `update` / `backup` (docker compose; backup via `python -m app.backup`).
 
 ## Deploy
 - Image: `ghcr.io/isaevdimka/tg-git-notifications-bot` (built by `.github/workflows/release.yml` on `v*` tags).

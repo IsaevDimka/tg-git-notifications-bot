@@ -15,4 +15,5 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 - Quiet hours and weekends with a morning digest; per-type mutes; per-user check interval.
 - `/my` — only your own merge requests; `/lang` — switch RU/EN (also switches the chat's command menu).
 - Daily summary at a chosen local time (09–12, default 10:00): what waits for your review, your MRs where it's your move, your MRs waiting for reviewers; can be turned off in `/settings`.
+- `Makefile`: `up`, `down`, `logs`, `update`, `backup` (consistent SQLite snapshot + key), `check`, `run`.
 - Docker image (amd64/arm64), docker compose, Fly/Render/Railway templates, CI.

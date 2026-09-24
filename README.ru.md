@@ -40,6 +40,18 @@ Self-hosted Telegram-бот, который не даёт пропустить �
 > Держи `/data` на томе. При старте контейнер отдаёт `/data` своему непривилегированному пользователю (uid 10001) и
 > сбрасывает root, поэтому тома Fly, Railway и Render (они принадлежат root) и обычные папки работают без chown.
 
+### Через Makefile (из клона репозитория)
+
+```bash
+git clone https://github.com/IsaevDimka/tg-git-notifications-bot && cd tg-git-notifications-bot
+cp .env.example .env      # впиши TELEGRAM_TOKEN
+make up                   # запустить (make logs · make down · make restart)
+make update               # подтянуть свежий образ и перезапустить
+make backup               # bot.db + secret.key → ./backups (можно на работающем боте)
+```
+
+`make help` покажет все команды, включая `make test` / `make run` для разработки.
+
 ## Настройки
 
 | Переменная | По умолчанию | Что это |
@@ -51,7 +63,7 @@ Self-hosted Telegram-бот, который не даёт пропустить �
 | `MIN_POLL_INTERVAL` | `60` | Минимум, который можно выбрать в `/settings` |
 | `LOG_LEVEL` | `INFO` | Уровень логов |
 
-Бэкапь `DATA_DIR` целиком: без `secret.key` сохранённые токены не расшифровать.
+Бэкапь `DATA_DIR` целиком (это делает `make backup`): без `secret.key` сохранённые токены не расшифровать.
 
 ## Команды
 

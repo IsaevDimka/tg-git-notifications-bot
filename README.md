@@ -40,6 +40,18 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 > Keep `/data` on a volume. At start the container hands `/data` to its unprivileged user (uid 10001) and then
 > drops root, so root-owned volumes on Fly, Railway or Render and plain bind mounts work as is.
 
+### With the Makefile (from a clone of this repo)
+
+```bash
+git clone https://github.com/IsaevDimka/tg-git-notifications-bot && cd tg-git-notifications-bot
+cp .env.example .env      # set TELEGRAM_TOKEN
+make up                   # start (make logs · make down · make restart)
+make update               # pull the newest image and restart
+make backup               # bot.db + secret.key → ./backups (safe while running)
+```
+
+`make help` lists everything, including `make test` / `make run` for development.
+
 ## Configuration
 
 | Variable | Default | Meaning |
@@ -51,7 +63,7 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 | `MIN_POLL_INTERVAL` | `60` | Lower bound users can choose in `/settings` |
 | `LOG_LEVEL` | `INFO` | Python log level |
 
-Back up `DATA_DIR` as a whole: without `secret.key` the stored tokens can't be decrypted.
+Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the stored tokens can't be decrypted.
 
 ## Commands
 
