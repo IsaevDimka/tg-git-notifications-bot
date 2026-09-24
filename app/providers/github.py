@@ -121,17 +121,14 @@ class GitHub:
     async def list_items(self, me: str) -> list[ReviewItem]:
         base = "is:pr is:open archived:false"
         found: dict[str, ReviewItem] = {}
-        for query in (
-            f"{base} review-requested:{me}",
-            f"{base} reviewed-by:{me} -author:{me}",
-            f"{base} assignee:{me} -author:{me}",
-        ):
+        for query in (f"{base} review-requested:{me}", f"{base} reviewed-by:{me} -author:{me}"):
             for pr in await self._search(query):
                 it = self._item(pr, Role.REVIEWER, pr["repository_url"].split("/repos/", 1)[1])
                 found[it.key] = it
-        for pr in await self._search(f"{base} author:{me}"):
-            it = self._item(pr, Role.AUTHOR, pr["repository_url"].split("/repos/", 1)[1])
-            found[it.key] = it
+        for query in (f"{base} assignee:{me}", f"{base} author:{me}"):  # assigned = mine, like authored
+            for pr in await self._search(query):
+                it = self._item(pr, Role.AUTHOR, pr["repository_url"].split("/repos/", 1)[1])
+                found[it.key] = it
         return list(found.values())
 
     async def fetch_item(self, item: ReviewItem) -> ReviewItem:

@@ -203,3 +203,16 @@ async def test_redirect_is_an_error(gh):
     respx.get(f"{API}/user").mock(return_value=httpx.Response(301, headers={"location": "https://elsewhere/"}))
     with pytest.raises(ProviderError, match="elsewhere"):
         await gh.whoami()
+
+
+@respx.mock
+async def test_assigned_pr_counts_as_mine(gh):
+    def respond(request):
+        q = request.url.params["q"]
+        if "assignee:me" in q:
+            return httpx.Response(200, json={"items": [search_pr(4, author="bob")]})
+        return httpx.Response(200, json={"items": []})
+
+    respx.get(f"{API}/search/issues").mock(side_effect=respond)
+    [it] = await gh.list_items("me")
+    assert it.iid == 4 and it.role is Role.AUTHOR

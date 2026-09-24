@@ -99,7 +99,7 @@ async def test_list_items_merges_roles_and_follows_pages(gl):
     items = {i.iid: i for i in await gl.list_items("me")}
     assert set(items) == {1, 2, 3, 9}
     assert items[1].role is Role.REVIEWER and items[9].role is Role.AUTHOR
-    assert items[3].draft
+    assert items[3].draft and items[3].role is Role.AUTHOR  # assignee = owner of the MR
     assert items[1].key == f"{HOST}:7:1" and items[1].project == "g/app" and items[1].ref == "!1"
 
 

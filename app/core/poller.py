@@ -69,7 +69,8 @@ async def _poll_item(
 ) -> tuple[list[Event], Watched | None]:
     me = account.username
     old = await store.get_watched(account.id, item.key)
-    if old is not None and item.updated_at <= old.updated_at_remote and now - _refreshed(old) < REFRESH_EVERY:
+    unchanged = old is not None and item.updated_at <= old.updated_at_remote and item.role is old.role
+    if unchanged and now - _refreshed(old) < REFRESH_EVERY:
         return _escalation(old, now, account.synced), None
     d = await provider.details(item)
     ball = whose_ball(item, d, me)
@@ -82,7 +83,7 @@ async def _poll_item(
         since = old.ball_since if ball == old.ball else item.updated_at
         if account.synced:
             events += diff(old.snapshot, d, item, me)
-    snap = {**snapshot(d), "refreshed_at": iso(now)}
+    snap = {**snapshot(d), "refreshed_at": iso(now), "approved_by_me": me in d.approved_by}
     w = Watched(account.id, item.key, item.role, item, item.updated_at, snap, ball, since)
     return events + _escalation(w, now, account.synced), w
 

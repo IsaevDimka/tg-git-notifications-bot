@@ -42,7 +42,7 @@ help.text: |-
   <b>Команды</b>
   /inbox — где ход за тобой и что не прочитано
   /mr — все твои MR: на ревью и свои
-  /my — только твои MR
+  /my — только твои MR (автор или assignee)
   /accounts — подключённые GitLab и GitHub
   /settings — уведомления, ежедневная сводка, тихие часы, язык, таймзона
   /lang — сменить язык (RU / EN)
@@ -102,7 +102,7 @@ act.failed: "Не получилось: {error}"
 act.gone: "Событие не найдено — возможно, аккаунт отключён."
 ping.body: "{mentions} 👋 напоминаю про этот MR — он ждёт вашего ревью."
 mr.tab_review: "На моём ревью"
-mr.tab_own: "Мои MR"
+mr.tab_own: "Мои MR (автор или assignee)"
 mr.empty_review: "На твоём ревью сейчас ничего нет 🎉"
 mr.empty_own: "У тебя нет открытых MR."
 mr.no_accounts: "Нет подключённых аккаунтов — нажми /start."
@@ -165,3 +165,4 @@ daily.review: "🔍 <b>Ждут твоего ревью: {count}</b>"
 daily.mine: "🛠 <b>Твои MR, где ход за тобой: {count}</b>"
 daily.waiting: "⏳ Твои MR ждут ревьюеров: {count}"
 daily.footer: "Выключить сводку или сменить время — /settings"
+mr.hidden_approved: "✅ Уже одобрено тобой: {count} — не показываю"

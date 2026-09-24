@@ -42,7 +42,7 @@ help.text: |-
   <b>Commands</b>
   /inbox — where it's your move and what's unread
   /mr — all your merge requests: to review and your own
-  /my — only your own merge requests
+  /my — only your own merge requests (author or assignee)
   /accounts — connected GitLab and GitHub accounts
   /settings — notifications, daily summary, quiet hours, language, time zone
   /lang — switch language (RU / EN)
@@ -102,7 +102,7 @@ act.failed: "That didn't work: {error}"
 act.gone: "Event not found — the account may have been disconnected."
 ping.body: "{mentions} 👋 friendly reminder — this merge request is waiting for your review."
 mr.tab_review: "To review"
-mr.tab_own: "My merge requests"
+mr.tab_own: "My merge requests (author or assignee)"
 mr.empty_review: "Nothing waiting for your review 🎉"
 mr.empty_own: "You have no open merge requests."
 mr.no_accounts: "No accounts connected — send /start."
@@ -165,3 +165,4 @@ daily.review: "🔍 <b>Waiting for your review: {count}</b>"
 daily.mine: "🛠 <b>Your merge requests where it's your move: {count}</b>"
 daily.waiting: "⏳ Your merge requests waiting for reviewers: {count}"
 daily.footer: "Turn the summary off or change its time — /settings"
+mr.hidden_approved: "✅ Already approved by you: {count} — hidden"

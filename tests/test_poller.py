@@ -246,3 +246,25 @@ async def test_new_item_i_already_reviewed_is_not_a_review_request(store):
     p.details_by_key[approved.key] = details(approved=["me"])
     await poll_account(p, store, acc, NOW)
     assert await events(store) == []
+
+
+async def test_snapshot_remembers_my_approval(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1)
+    p.items = [mr]
+    p.details_by_key[mr.key] = details(approved=["me"])
+    await poll_account(p, store, acc, NOW)
+    assert (await store.get_watched(acc.id, mr.key)).snapshot["approved_by_me"] is True
+
+
+async def test_role_change_is_applied_immediately(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1)
+    p.items = [mr]
+    p.details_by_key[mr.key] = details()
+    await poll_account(p, store, acc, NOW)
+    p.items = [replace(mr, role=Role.AUTHOR)]
+    await poll_account(p, store, acc, NOW + timedelta(minutes=3))
+    assert (await store.get_watched(acc.id, mr.key)).role is Role.AUTHOR

@@ -97,14 +97,15 @@ class GitLab:
     async def list_items(self, me: str) -> list[ReviewItem]:
         base = {"scope": "all", "state": "opened"}
         found: dict[str, ReviewItem] = {}
-        for field in ("reviewer_username", "assignee_username"):
+        for mr in await self._paged("/merge_requests", {**base, "reviewer_username": me}):
+            if mr["author"]["username"] != me:
+                it = self._item(mr, Role.REVIEWER)
+                found[it.key] = it
+        # Assignee = the MR's owner in GitLab terms, so assigned MRs are "mine" just like authored ones.
+        for field in ("assignee_username", "author_username"):
             for mr in await self._paged("/merge_requests", {**base, field: me}):
-                if mr["author"]["username"] != me:
-                    it = self._item(mr, Role.REVIEWER)
-                    found[it.key] = it
-        for mr in await self._paged("/merge_requests", {**base, "author_username": me}):
-            it = self._item(mr, Role.AUTHOR)
-            found[it.key] = it
+                it = self._item(mr, Role.AUTHOR)
+                found[it.key] = it
         return list(found.values())
 
     async def fetch_item(self, item: ReviewItem) -> ReviewItem:

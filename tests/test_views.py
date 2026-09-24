@@ -119,3 +119,12 @@ async def test_cmd_my_opens_own_tab(store):
     call = upd.effective_chat.send_message.await_args
     assert "!8" in call.args[0] and "!9" not in call.args[0]
     assert call.kwargs["reply_markup"].inline_keyboard[0][1].text.startswith("• ")
+
+
+def test_review_tab_hides_what_i_already_approved():
+    ws = [watched(1), watched(2, ball=Ball.NONE, snapshot={"approved_by_me": True})]
+    text = views.render_mr_list(ws, "rev", "en", NOW)
+    assert "!1" in text and "!2" not in text
+    assert "Already approved by you: 1" in text
+    only_approved = views.render_mr_list([ws[1]], "rev", "en", NOW)
+    assert "Nothing waiting" in only_approved and "Already approved by you: 1" in only_approved

@@ -47,13 +47,20 @@ def mr_line(w: Watched, lang: str, now: datetime, unread: int = 0) -> str:
 def render_mr_list(ws: list[Watched], tab: str, lang: str, now: datetime) -> str:
     role = Role.REVIEWER if tab == "rev" else Role.AUTHOR
     rows = _ordered([w for w in ws if w.role is role])
+    hidden = 0
+    if tab == "rev":  # like GitLab's "reviewer = me AND not approved by me" filter
+        hidden = sum(1 for w in rows if w.snapshot.get("approved_by_me"))
+        rows = [w for w in rows if not w.snapshot.get("approved_by_me")]
+    footer = [t(lang, "mr.hidden_approved", count=hidden)] if hidden else []
     if not rows:
-        return t(lang, "mr.empty_review" if tab == "rev" else "mr.empty_own")
+        return "\n".join([t(lang, "mr.empty_review" if tab == "rev" else "mr.empty_own"), *footer])
     title = t(lang, "mr.tab_review" if tab == "rev" else "mr.tab_own")
     lines = [f"<b>{title}</b> ({len(rows)})", t(lang, "mr.legend"), ""]
     lines += [mr_line(w, lang, now) for w in rows[:LIST_MAX]]
     if len(rows) > LIST_MAX:
         lines.append(t(lang, "mr.more", count=len(rows) - LIST_MAX))
+    if footer:
+        lines += ["", *footer]
     return "\n".join(lines)
 
 
