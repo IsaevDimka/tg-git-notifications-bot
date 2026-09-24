@@ -1,0 +1,13 @@
+services:
+  bot:
+    image: ghcr.io/isaevdimka/tg-git-notifications-bot:latest
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - data:/data
+
+volumes:
+  data:

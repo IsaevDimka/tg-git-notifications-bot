@@ -1,0 +1,15 @@
+app = "tg-git-notifications-bot"
+primary_region = "ams"
+
+[build]
+  image = "ghcr.io/isaevdimka/tg-git-notifications-bot:latest"
+
+[env]
+  DATA_DIR = "/data"
+
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[[vm]]
+  memory = "256mb"

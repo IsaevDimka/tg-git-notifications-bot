@@ -1,0 +1,37 @@
+[project]
+name = "tg-git-notifications-bot"
+version = "0.1.0"
+description = "Telegram bot that makes sure you never miss a code review on GitLab or GitHub"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+  "python-telegram-bot>=22.0,<23",
+  "httpx>=0.28,<1",
+  "aiosqlite>=0.20,<1",
+  "cryptography>=44",
+  "pyyaml>=6.0",
+  "tzdata>=2024.1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "respx>=0.22",
+  "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC"]
+ignore = ["E501"]  # long SQL / f-strings; the formatter keeps code readable
