@@ -154,11 +154,19 @@ async def poll_account(provider: Provider, store: Store, account: Account, now: 
     return PollResult(emitted, cursor)
 
 
+async def _mark_auth(store: Store, account: Account, now: datetime) -> None:
+    """Record a dead token; tell the user once per breakage, not on every tick."""
+    if account.last_error != "auth":
+        notice = Event(Kind.TOKEN_BROKEN, dedup=f"auth:{account.id}:{iso(now)}", title=account.host)
+        await store.add_event(account.tg_id, account.id, notice, now)
+    await store.update_account(account.id, last_poll_at=iso(now), last_error="auth")
+
+
 async def poll_one(store: Store, provider: Provider, account: Account, now: datetime) -> None:
     try:
         res = await poll_account(provider, store, account, now)
     except AuthError:
-        await store.update_account(account.id, last_poll_at=iso(now), last_error="auth")
+        await _mark_auth(store, account, now)
         return
     except Exception as e:  # noqa: BLE001 — one account must never stop the loop
         log.exception("poll failed for account %s", account.id)
@@ -181,7 +189,7 @@ async def poll_due(store: Store, make: Callable[[Account], Provider], now: datet
             provider = make(account)
         except Exception as e:  # noqa: BLE001 — undecryptable token (secret.key replaced)
             log.warning("account %s unusable: %s", account.id, type(e).__name__)
-            await store.update_account(account.id, last_poll_at=iso(now), last_error="auth")
+            await _mark_auth(store, account, now)
             continue
         await poll_one(store, provider, account, now)
     return len(accounts)

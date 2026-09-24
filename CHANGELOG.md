@@ -4,6 +4,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+### Added (v0.2 quick wins)
+- One-time "token stopped working" notice when an account's token is rejected.
+
+### Fixed (v0.2 quick wins)
+- The poll loop no longer dies if the heartbeat file can't be written.
+
 ### Added
 - `/start` onboarding: GitLab.com, self-hosted GitLab or GitHub; token message deleted at once, token stored
   encrypted; time zone picker.

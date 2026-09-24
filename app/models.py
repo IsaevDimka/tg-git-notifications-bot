@@ -32,6 +32,7 @@ class Kind(StrEnum):
     CLOSED = "closed"
     CONFLICT = "conflict"
     WAITING_ON_REVIEWER = "waiting_on_reviewer"
+    TOKEN_BROKEN = "token_broken"
 
 
 @dataclass(frozen=True)

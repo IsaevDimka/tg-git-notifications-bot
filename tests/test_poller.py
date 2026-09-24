@@ -268,3 +268,35 @@ async def test_role_change_is_applied_immediately(store):
     p.items = [replace(mr, role=Role.AUTHOR)]
     await poll_account(p, store, acc, NOW + timedelta(minutes=3))
     assert (await store.get_watched(acc.id, mr.key)).role is Role.AUTHOR
+
+
+async def test_dead_token_is_reported_once(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    p.list_error = AuthError("401", status=401)
+    await poll_one(store, p, acc, NOW)
+    await poll_one(store, p, await store.get_account(acc.id), NOW + timedelta(minutes=3))
+    [ev] = await events(store)
+    assert ev.kind is Kind.TOKEN_BROKEN and ev.title == "gitlab.example.com"
+
+
+async def test_token_broken_again_after_recovery_is_reported_again(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    p.list_error = AuthError("401", status=401)
+    await poll_one(store, p, acc, NOW)
+    p.list_error = None
+    await poll_one(store, p, await store.get_account(acc.id), NOW + timedelta(minutes=3))
+    p.list_error = AuthError("401", status=401)
+    await poll_one(store, p, await store.get_account(acc.id), NOW + timedelta(minutes=6))
+    assert [e.kind for e in await events(store)] == [Kind.TOKEN_BROKEN, Kind.TOKEN_BROKEN]
+
+
+async def test_undecryptable_token_is_reported(store):
+    await make_account(store, synced=True)
+
+    def broken(_account):
+        raise ValueError("InvalidToken")
+
+    await poll_due(store, broken, NOW)
+    assert [e.kind for e in await events(store)] == [Kind.TOKEN_BROKEN]
