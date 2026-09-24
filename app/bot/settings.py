@@ -19,6 +19,7 @@ from app.timeutil import parse_ts
 INTERVALS_MIN = (1, 3, 5, 10, 15)
 QUIET_PRESETS = (("22:00", "09:00"), ("23:00", "08:00"), ("20:00", "10:00"), ("00:00", "07:00"))
 DIGEST_TIMES = ("09:00", "10:00", "11:00", "12:00")
+EVENING_TIMES = ("17:00", "18:00", "19:00", "20:00")
 LANGS = ("ru", "en")
 
 
@@ -51,6 +52,11 @@ def apply(user: User, action: str, min_poll: int) -> dict:
         return {"mute_bots": not user.mute_bots}
     if action == "md":
         return {"mute_drafts": not user.mute_drafts}
+    if action == "ev":
+        return {"evening_enabled": not user.evening_enabled}
+    if action == "evt":
+        idx = EVENING_TIMES.index(user.evening_time) if user.evening_time in EVENING_TIMES else -1
+        return {"evening_time": EVENING_TIMES[(idx + 1) % len(EVENING_TIMES)], "evening_enabled": True}
     if action == "dg":
         return {"digest_enabled": not user.digest_enabled}
     if action == "dgt":
@@ -68,6 +74,8 @@ def settings_view(user: User) -> tuple[str, InlineKeyboardMarkup]:
     rows.append([btn(t(lang, "st.interval", n=user.poll_interval // 60), "st:iv")])
     digest = t(lang, "st.digest_on", time=user.digest_time) if user.digest_enabled else t(lang, "st.digest_off")
     rows.append([btn(digest, "st:dg"), btn(t(lang, "st.digest_time"), "st:dgt")])
+    evening = t(lang, "st.evening_on", time=user.evening_time) if user.evening_enabled else t(lang, "st.evening_off")
+    rows.append([btn(evening, "st:ev"), btn(t(lang, "st.evening_time"), "st:evt")])
     quiet = (
         t(lang, "st.quiet_on", start=user.quiet_from, end=user.quiet_to)
         if user.quiet_enabled

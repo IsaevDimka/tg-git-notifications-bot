@@ -82,4 +82,9 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE accounts ADD COLUMN rate_remaining INTEGER;
     """,
+    """
+    ALTER TABLE users ADD COLUMN evening_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN evening_time TEXT NOT NULL DEFAULT '18:00';
+    ALTER TABLE users ADD COLUMN evening_last TEXT;
+    """,
 ]

@@ -43,6 +43,9 @@ class User:
     mute_bots: bool = True
     mute_drafts: bool = True  # events on drafts I'm reviewing wait until the draft is ready
     muted_projects: frozenset[str] = frozenset()
+    evening_enabled: bool = False
+    evening_time: str = "18:00"
+    evening_last: str | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +93,7 @@ _USER_FIELDS = frozenset(
         "chat_id", "username", "lang", "tz", "status", "is_admin", "poll_interval",
         "quiet_enabled", "quiet_from", "quiet_to", "quiet_weekends", "muted_kinds",
         "digest_enabled", "digest_time", "digest_last", "mute_bots", "mute_drafts", "muted_projects",
+        "evening_enabled", "evening_time", "evening_last",
     }
 )
 _ACCOUNT_FIELDS = frozenset(
@@ -122,6 +126,9 @@ def _user(r) -> User:
         mute_bots=bool(r["mute_bots"]),
         mute_drafts=bool(r["mute_drafts"]),
         muted_projects=frozenset(json.loads(r["muted_projects"])),
+        evening_enabled=bool(r["evening_enabled"]),
+        evening_time=r["evening_time"],
+        evening_last=r["evening_last"],
     )
 
 

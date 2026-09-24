@@ -82,3 +82,29 @@ async def test_send_daily_empty_marks_day_without_message(store):
     bot = Bot()
     assert await send_daily(bot, store, THU_1030_MSK) == 0
     assert bot.sent == [] and (await store.get_user(1)).digest_last == "2026-09-24"
+
+
+THU_1830_MSK = datetime(2026, 9, 24, 15, 30, tzinfo=UTC)
+
+
+def test_evening_due_only_when_enabled():
+    from app.bot.daily import evening_due
+
+    assert evening_due(USER, THU_1830_MSK) is None
+    on = replace(USER, evening_enabled=True)
+    assert evening_due(on, THU_1830_MSK) == "2026-09-24"
+    assert evening_due(replace(on, evening_last="2026-09-24"), THU_1830_MSK) is None
+    assert evening_due(on, THU_1030_MSK) is None
+
+
+async def test_evening_summary_lists_only_my_moves(store):
+    await store.register_user(1, 100, "me", "en", False, 180, NOW)
+    await store.update_user(1, tz="Europe/Moscow", evening_enabled=True, digest_last="2026-09-24")
+    acc = await store.add_account(1, "gitlab", "gitlab.example.com", "me", "s", NOW)
+    await store.put_watched(watched(7, account_id=acc.id))  # my move
+    await store.put_watched(watched(8, Role.AUTHOR, Ball.THEM, account_id=acc.id, author="me"))
+    bot = Bot()
+    assert await send_daily(bot, store, THU_1830_MSK) == 1
+    text = bot.sent[0][1]
+    assert "Before you wrap up" in text and "!7" in text and "waiting for reviewers" not in text
+    assert (await store.get_user(1)).evening_last == "2026-09-24"

@@ -13,7 +13,7 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 - Reply, resolve, approve and snooze **right from Telegram**
 - `/inbox` shows only the merge requests where it's your move; `/mr` shows everything
 - Quiet hours and weekends: events wait and arrive as one morning digest
-- Daily summary at your chosen time (can be turned off)
+- Daily summary at your chosen time (can be turned off) and an opt-in evening one — what still waits for your answer
 - Quiet by default for bots (renovate, dependabot…) and drafts you review; `/mute` a whole project
 - Multi-user: one deployment serves your whole team; everyone connects their own token
 - One container, SQLite, no public URL needed (long polling). Russian and English UI.

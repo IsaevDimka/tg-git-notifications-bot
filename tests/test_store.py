@@ -162,3 +162,8 @@ async def test_watch_refs(store):
     assert await store.watch_refs(acc.id) == [("g/app", 5), ("g/lib", 7)]
     await store.delete_watch_ref(acc.id, "g/app", 5)
     assert await store.watch_refs(acc.id) == [("g/lib", 7)]
+
+
+async def test_evening_summary_defaults(store):
+    user = await _user(store, 1)
+    assert not user.evening_enabled and user.evening_time == "18:00" and user.evening_last is None

@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 ## [Unreleased]
 
 ### Added (v0.2 quick wins)
+- Opt-in evening summary (17–20, default 18:00): merge requests where it's still your move.
 - `/status` — per account: last successful check, last error, counts, API requests left; queue size and quiet-hours state. `/test` — samples of every notification type.
 - `/watch <MR link>` — follow someone else's merge request (approvals, merged, closed; no comment noise); `/watch` lists and unfollows.
 - MRs labelled `blocker` / `hotfix` (configurable: `URGENT_LABELS`) notify even during quiet hours.

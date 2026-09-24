@@ -189,3 +189,11 @@ async def test_mute_lists_projects_and_toggles(store):
     ctx.args = ["g/lib"]
     await settings.cmd_mute(message_update("/mute g/lib", lang="en"), ctx)
     assert (await store.get_user(1)).muted_projects == frozenset()
+
+
+async def test_apply_evening_summary(store):
+    user = await make_user(store)
+    assert settings.apply(user, "ev", 60) == {"evening_enabled": True}
+    assert settings.apply(user, "evt", 60) == {"evening_time": "19:00", "evening_enabled": True}
+    _, markup = settings.settings_view(user)
+    assert "st:ev" in callbacks(markup) and "st:evt" in callbacks(markup)
