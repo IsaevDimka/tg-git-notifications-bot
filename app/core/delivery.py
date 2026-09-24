@@ -41,8 +41,13 @@ def _bursts(live: list[StoredEvent]) -> list[list[StoredEvent]]:
     return out
 
 
-async def deliver_user(bot, store: Store, user: User, now: datetime) -> int:
-    if is_quiet(user, now):
+def _urgent(ev, urgent_labels: frozenset[str]) -> bool:
+    return bool(ev.item and urgent_labels & {label.lower() for label in ev.item.labels})
+
+
+async def deliver_user(bot, store: Store, user: User, now: datetime, urgent_labels: frozenset[str] = frozenset()) -> int:
+    quiet = is_quiet(user, now)
+    if quiet and not urgent_labels:
         return 0
     pending = await store.pending_events(user.tg_id, now)
     muted = [e.id for e in pending if e.event.kind in user.muted_kinds]
@@ -54,7 +59,9 @@ async def deliver_user(bot, store: Store, user: User, now: datetime) -> int:
         await store.mark_read(noise, now)
     skip = set(muted) | set(noise)
     live = [e for e in pending if e.id not in skip]
-    waited = [e for e in live if e.snoozed_until is None and now - e.created_at >= DIGEST_AFTER]
+    if quiet:  # only urgent labels (blocker/hotfix) break through; the rest waits for the morning
+        live = [e for e in live if _urgent(e.event, urgent_labels)]
+    waited = [] if quiet else [e for e in live if e.snoozed_until is None and now - e.created_at >= DIGEST_AFTER]
     sent = 0
     try:
         if len(waited) >= 2:
@@ -80,12 +87,12 @@ async def deliver_user(bot, store: Store, user: User, now: datetime) -> int:
     return sent
 
 
-async def deliver_all(bot, store: Store, now: datetime) -> int:
+async def deliver_all(bot, store: Store, now: datetime, urgent_labels: frozenset[str] = frozenset()) -> int:
     """One user's failure must never hold up everybody after them."""
     sent = 0
     for user in await store.active_users():
         try:
-            sent += await deliver_user(bot, store, user, now)
+            sent += await deliver_user(bot, store, user, now, urgent_labels)
         except Exception:
             log.exception("delivery failed for user %s", user.tg_id)
     return sent

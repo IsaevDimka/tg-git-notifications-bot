@@ -52,6 +52,7 @@ class ReviewItem:
     updated_at: datetime
     state: str = "opened"  # opened | merged | closed
     draft: bool = False
+    labels: tuple[str, ...] = ()
 
     @property
     def key(self) -> str:
@@ -139,6 +140,7 @@ def item_from_dict(d: dict) -> ReviewItem:
         **{
             **d,
             "role": Role(d["role"]),
+            "labels": tuple(d.get("labels", ())),
             "created_at": parse_ts(d["created_at"]),
             "updated_at": parse_ts(d["updated_at"]),
         }

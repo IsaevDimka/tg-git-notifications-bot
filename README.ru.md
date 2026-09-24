@@ -64,6 +64,7 @@ make backup               # bot.db + secret.key → ./backups (можно на �
 | `ALLOWED_USERS` | пусто | Telegram ID через запятую, которых пускать без одобрения |
 | `POLL_INTERVAL` | `180` | Интервал проверки по умолчанию, секунды |
 | `MIN_POLL_INTERVAL` | `60` | Минимум, который можно выбрать в `/settings` |
+| `URGENT_LABELS` | `blocker,hotfix` | MR с этими метками приходят даже в тихие часы |
 | `LOG_LEVEL` | `INFO` | Уровень логов |
 
 Бэкапь `DATA_DIR` целиком (это делает `make backup`): без `secret.key` сохранённые токены не расшифровать.

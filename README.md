@@ -64,6 +64,7 @@ make backup               # bot.db + secret.key → ./backups (safe while runnin
 | `ALLOWED_USERS` | empty | Comma-separated Telegram user IDs let in without approval |
 | `POLL_INTERVAL` | `180` | Default seconds between checks, per user |
 | `MIN_POLL_INTERVAL` | `60` | Lower bound users can choose in `/settings` |
+| `URGENT_LABELS` | `blocker,hotfix` | MRs with these labels notify even during quiet hours |
 | `LOG_LEVEL` | `INFO` | Python log level |
 
 Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the stored tokens can't be decrypted.

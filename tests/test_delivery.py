@@ -177,3 +177,15 @@ async def test_noise_is_swallowed_and_marked_read(store):
     assert "@alice" in bot.sent[0][1]
     assert await store.pending_events(1, NOW) == []
     assert await store.unread_counts(1) == {item(iid=1).key: 1}
+
+
+async def test_urgent_labels_break_through_quiet_hours(store):
+    acc, user = await setup(store, quiet_from="11:00", quiet_to="13:00")
+    urgent = Event(Kind.NEW_COMMENT, dedup="u", item=item(iid=3, labels=("Hotfix",)), actor="alice",
+                   note=note(3, "alice", "prod is down"), thread_id="t")
+    await store.add_event(1, acc.id, urgent, NOW)
+    await store.add_event(1, acc.id, comment(4), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW, urgent_labels=frozenset({"hotfix"})) == 1
+    assert "prod is down" in bot.sent[0][1]
+    assert len(await store.pending_events(1, NOW)) == 1  # the normal one waits for morning

@@ -18,6 +18,7 @@ def item(
     draft: bool = False,
     state: str = "opened",
     title: str = "Add login",
+    labels: tuple[str, ...] = (),
 ) -> ReviewItem:
     return ReviewItem(
         kind=kind,
@@ -33,6 +34,7 @@ def item(
         updated_at=parse_ts(updated),
         state=state,
         draft=draft,
+        labels=labels,
     )
 
 

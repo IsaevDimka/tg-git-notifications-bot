@@ -51,3 +51,9 @@ def test_unwritable_data_dir_is_clear_error(tmp_path):
             ensure_writable(ro)
     finally:
         ro.chmod(0o700)
+
+
+def test_urgent_labels():
+    assert load_config({"TELEGRAM_TOKEN": "1:abc"}).urgent_labels == frozenset({"blocker", "hotfix"})
+    cfg = load_config({"TELEGRAM_TOKEN": "1:abc", "URGENT_LABELS": "P0, Incident ,"})
+    assert cfg.urgent_labels == frozenset({"p0", "incident"})

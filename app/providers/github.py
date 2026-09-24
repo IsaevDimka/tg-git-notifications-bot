@@ -113,6 +113,7 @@ class GitHub:
             updated_at=parse_ts(pr["updated_at"]),
             state=state,
             draft=bool(pr.get("draft")),
+            labels=tuple(label["name"] for label in pr.get("labels") or () if label.get("name")),
         )
 
     async def _search(self, query: str) -> list[dict]:

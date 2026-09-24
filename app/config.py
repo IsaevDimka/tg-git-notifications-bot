@@ -13,6 +13,7 @@ class Config:
     default_poll_interval: int
     min_poll_interval: int
     log_level: str
+    urgent_labels: frozenset[str] = frozenset({"blocker", "hotfix"})
 
 
 def _allowed(raw: str) -> frozenset[int]:
@@ -35,6 +36,9 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         default_poll_interval=max(min_interval, int(env.get("POLL_INTERVAL", "180"))),
         min_poll_interval=min_interval,
         log_level=env.get("LOG_LEVEL", "INFO").upper(),
+        urgent_labels=frozenset(
+            label.strip().lower() for label in env.get("URGENT_LABELS", "blocker,hotfix").split(",") if label.strip()
+        ),
     )
 
 

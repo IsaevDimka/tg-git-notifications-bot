@@ -92,6 +92,7 @@ class GitLab:
             updated_at=parse_ts(mr["updated_at"]),
             state=mr["state"],
             draft=bool(mr.get("draft") or mr.get("work_in_progress")),
+            labels=tuple(mr.get("labels") or ()),
         )
 
     async def list_items(self, me: str) -> list[ReviewItem]:

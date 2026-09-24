@@ -73,7 +73,7 @@ async def _delivery_loop(app: Application) -> None:
     store = app.bot_data["store"]
     while True:
         try:
-            await deliver_all(app.bot, store, timeutil.now())
+            await deliver_all(app.bot, store, timeutil.now(), app.bot_data["cfg"].urgent_labels)
             await send_daily(app.bot, store, timeutil.now())
         except Exception:
             log.exception("delivery cycle failed")
