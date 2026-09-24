@@ -36,6 +36,7 @@ class Kind(StrEnum):
     TOKEN_BROKEN = "token_broken"
     REREVIEW = "rereview"
     STALE_REVIEW = "stale_review"
+    PING = "ping"  # a colleague in this bot asked you to look at an MR
 
 
 @dataclass(frozen=True)

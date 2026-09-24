@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 ## [Unreleased]
 
 ### Added (v0.2 quick wins)
+- "Ping" reaches colleagues who use this bot as a Telegram notice (respecting their quiet hours, once a day); others still get an MR comment. `/invite` makes a one-time 7-day link that skips admin approval.
 - Opt-in evening summary (17–20, default 18:00): merge requests where it's still your move.
 - `/status` — per account: last successful check, last error, counts, API requests left; queue size and quiet-hours state. `/test` — samples of every notification type.
 - `/watch <MR link>` — follow someone else's merge request (approvals, merged, closed; no comment noise); `/watch` lists and unfollows.

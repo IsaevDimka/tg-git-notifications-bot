@@ -2,6 +2,7 @@
 
 import html
 import re
+import secrets
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
@@ -37,7 +38,9 @@ async def cmd_start(update, ctx) -> None:
         lang = pick_lang(update.effective_user.language_code)
         await update.effective_message.reply_text(t(lang, "start.private_only"))
         return
-    user, created = await access.register(update, ctx)
+    payload = (list(getattr(ctx, "args", None) or []) or [""])[0]
+    invite = payload.removeprefix("inv_") if payload.startswith("inv_") else None
+    user, created = await access.register(update, ctx, invite)
     if user.status == "pending":
         if created:
             await access.notify_admins(ctx.bot, deps.store(ctx), user)
@@ -54,6 +57,17 @@ async def cmd_help(update, ctx) -> None:
     user = await access.current_user(update, ctx)
     if user is not None:
         await update.effective_chat.send_message(t(user.lang, "help.text"), parse_mode=ParseMode.HTML)
+
+
+async def cmd_invite(update, ctx) -> None:
+    """One-time link (7 days) that lets a colleague in without admin approval."""
+    user = await access.current_user(update, ctx)
+    if user is None:
+        return
+    token = secrets.token_urlsafe(9)
+    await deps.store(ctx).create_invite(token, user.tg_id, timeutil.now())
+    link = f"https://t.me/{ctx.bot.username}?start=inv_{token}"
+    await update.effective_chat.send_message(t(user.lang, "invite.link", link=link), link_preview_options=NO_PREVIEW)
 
 
 async def ask_token(chat, ctx, lang: str, kind: str, host: str) -> None:

@@ -62,7 +62,7 @@ def keyboard(ev: Event, event_id: int, lang: str) -> InlineKeyboardMarkup:
         if ev.resolvable:
             row.append(_btn(lang, "btn.resolve", f"a:resolve:{event_id}"))
         rows.append(row)
-    if ev.kind in (Kind.REVIEW_REQUESTED, Kind.STALE_REVIEW):
+    if ev.kind in (Kind.REVIEW_REQUESTED, Kind.STALE_REVIEW, Kind.PING):
         rows.append([_btn(lang, "btn.approve", f"a:approve:{event_id}")])
     if ev.kind is Kind.WAITING_ON_REVIEWER:
         rows.append([_btn(lang, "btn.ping", f"a:ping:{event_id}")])

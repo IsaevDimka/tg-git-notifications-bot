@@ -87,4 +87,13 @@ MIGRATIONS: list[str] = [
     ALTER TABLE users ADD COLUMN evening_time TEXT NOT NULL DEFAULT '18:00';
     ALTER TABLE users ADD COLUMN evening_last TEXT;
     """,
+    """
+    CREATE TABLE invites (
+        token TEXT PRIMARY KEY,
+        created_by INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        used_by INTEGER,
+        used_at TEXT
+    );
+    """,
 ]

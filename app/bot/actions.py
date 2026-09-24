@@ -1,5 +1,6 @@
 """Buttons under notifications: reply, resolve, approve, ping, snooze, mark as read."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -11,6 +12,7 @@ from app.bot.keyboards import btn
 from app.core.quiet import user_zone
 from app.core.render import keyboard
 from app.i18n import t
+from app.models import Event, Kind, Role
 from app.providers.base import WRITE_SCOPES, AuthError, ProviderError
 from app.storage.store import User
 
@@ -121,8 +123,8 @@ async def cb_action(update, ctx) -> None:
     elif act == "approve!":
         call, done = provider.approve(ev.item), "act.approved"
     elif act == "ping!":
-        body = t(lang, "ping.body", mentions=" ".join(f"@{a}" for a in ev.actors))
-        call, done = provider.comment(ev.item, body), "act.pinged"
+        await _ping(q, ctx, user, account, provider, stored.id, ev, now)
+        return
     else:
         await q.answer()
         return
@@ -133,6 +135,44 @@ async def cb_action(update, ctx) -> None:
         return
     await st.mark_read([event_id], now)
     await q.answer(t(lang, done))
+    await q.edit_message_reply_markup(reply_markup=None)
+
+
+async def _ping(q, ctx, user: User, account, provider, event_id: int, ev, now: datetime) -> None:
+    """Colleagues who use this bot get a Telegram notice; everyone else a comment in the MR."""
+    st, lang = deps.store(ctx), user.lang
+    in_bot, elsewhere = [], []
+    for name in ev.actors:
+        peer = await st.find_peer(account.kind, account.host, name)
+        if peer is not None and peer[0].tg_id != user.tg_id:
+            in_bot.append((name, peer))
+        else:
+            elsewhere.append(name)
+    if elsewhere:
+        body = t(lang, "ping.body", mentions=" ".join(f"@{n}" for n in elsewhere))
+        try:
+            await provider.comment(ev.item, body)
+        except ACTION_ERRORS as e:
+            await q.answer(error_text(lang, account.kind, e), show_alert=True)
+            return
+    for _, (peer_user, peer_account) in in_bot:
+        notice = Event(
+            Kind.PING,
+            dedup=f"ping:{ev.item.key}:{account.username}:{now.date().isoformat()}",
+            item=replace(ev.item, role=Role.REVIEWER),
+            actor=account.username,
+        )
+        await st.add_event(peer_user.tg_id, peer_account.id, notice, now)
+    dm = " ".join(f"@{n}" for n, _ in in_bot)
+    mr = " ".join(f"@{n}" for n in elsewhere)
+    if dm and mr:
+        text = t(lang, "act.pinged_both", dm=dm, mr=mr)
+    elif dm:
+        text = t(lang, "act.pinged_dm", names=dm)
+    else:
+        text = t(lang, "act.pinged")
+    await st.mark_read([event_id], now)
+    await q.answer(text)
     await q.edit_message_reply_markup(reply_markup=None)
 
 

@@ -426,3 +426,30 @@ class Store:
         await self._write(
             "DELETE FROM watch_refs WHERE account_id = ? AND project = ? AND iid = ?", (account_id, project, iid)
         )
+
+    # ---- invites and peers -------------------------------------------------------------------
+
+    async def create_invite(self, token: str, created_by: int, now: datetime) -> None:
+        await self._write(
+            "INSERT INTO invites (token, created_by, created_at) VALUES (?, ?, ?)", (token, created_by, iso(now))
+        )
+
+    async def use_invite(self, token: str, tg_id: int, now: datetime, ttl: timedelta = timedelta(days=7)) -> bool:
+        """Single use, valid for `ttl`. Returns whether the invite was valid and is now consumed."""
+        cur = await self._write(
+            "UPDATE invites SET used_by = ?, used_at = ? WHERE token = ? AND used_by IS NULL AND created_at >= ?",
+            (tg_id, iso(now), token, iso(now - ttl)),
+        )
+        return cur.rowcount == 1
+
+    async def find_peer(self, kind: str, host: str, username: str) -> tuple[User, Account] | None:
+        """An active user of this bot who connected `username` on the same host."""
+        rows = await self._all(
+            "SELECT * FROM accounts WHERE kind = ? AND host = ? AND lower(username) = lower(?) ORDER BY id",
+            (kind, host, username),
+        )
+        for row in rows:
+            user = await self.get_user(row["tg_id"])
+            if user is not None and user.status == "active":
+                return user, _account(row)
+        return None

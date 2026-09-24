@@ -46,6 +46,7 @@ help.text: |-
   /mute — mute a noisy project
   /watch — follow someone else's MR by link
   /status — is the bot working; /test — sample notifications
+  /invite — invite a colleague (pings then reach them in Telegram)
   /accounts — connected GitLab and GitHub accounts
   /settings — notifications, daily summary, quiet hours, language, time zone
   /lang — switch language (RU / EN)
@@ -212,3 +213,10 @@ daily.evening_header: "🌙 <b>Before you wrap up — waiting for your answer</b
 st.evening_on: "🌙 Evening summary: {time}"
 st.evening_off: "🌙 Evening summary: off"
 st.evening_time: "🕕 Evening time"
+ev.ping: "🔔 <b>{actor}</b> asks you to look at this MR"
+short.ping: "🔔 asked to look"
+kind.ping: "Colleagues asking me to look"
+act.pinged_dm: "Sent via Telegram: {names}"
+act.pinged_both: "Sent via Telegram: {dm}; commented in the MR: {mr}"
+cmd.invite: "Invite a colleague"
+invite.link: "👥 One-time invite link (valid 7 days):\n{link}\n\nYour colleague opens it and gets in without admin approval. Once you're both here, \"Ping\" reaches them in Telegram instead of as an MR comment."

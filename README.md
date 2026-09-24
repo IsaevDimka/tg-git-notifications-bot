@@ -82,6 +82,7 @@ Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the 
 | `/lang` | Switch language (RU / EN) |
 | `/status` | Is the bot working: last check, errors, API rate limit left |
 | `/test` | Samples of every notification type |
+| `/invite` | One-time link for a colleague (skips admin approval); pings then reach them in Telegram |
 | `/accounts` | Connected accounts, their status; disconnect |
 | `/settings` | Notification types, daily summary on/off and time, check interval, quiet hours, language, time zone |
 | `/help` | Command list |

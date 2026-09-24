@@ -167,3 +167,24 @@ async def test_watch_refs(store):
 async def test_evening_summary_defaults(store):
     user = await _user(store, 1)
     assert not user.evening_enabled and user.evening_time == "18:00" and user.evening_last is None
+
+
+async def test_invites_single_use_and_expiring(store):
+    await _user(store, 1)
+    await store.create_invite("tok1", 1, NOW)
+    assert await store.use_invite("tok1", 2, NOW + timedelta(days=1))
+    assert not await store.use_invite("tok1", 3, NOW + timedelta(days=1))  # already used
+    await store.create_invite("tok2", 1, NOW)
+    assert not await store.use_invite("tok2", 4, NOW + timedelta(days=8))  # expired
+    assert not await store.use_invite("nope", 5, NOW)
+
+
+async def test_find_peer_by_host_and_username(store):
+    await _user(store, 1)
+    await _user(store, 2, preapproved=True)
+    acc = await store.add_account(2, "gitlab", "gitlab.example.com", "Bob", "s", NOW)
+    user, account = await store.find_peer("gitlab", "gitlab.example.com", "bob")
+    assert user.tg_id == 2 and account.id == acc.id
+    assert await store.find_peer("gitlab", "other.host", "bob") is None
+    await store.update_user(2, status="blocked")
+    assert await store.find_peer("gitlab", "gitlab.example.com", "bob") is None

@@ -41,6 +41,7 @@ COMMAND_HANDLERS = (
     ("mute", settings.cmd_mute),
     ("watch", watch.cmd_watch),
     ("status", status.cmd_status),
+    ("invite", onboarding.cmd_invite),
     ("test", status.cmd_test),
     ("accounts", settings.cmd_accounts),
 )
