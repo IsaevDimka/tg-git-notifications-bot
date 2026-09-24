@@ -91,7 +91,7 @@ async def test_list_items_merges_roles_and_follows_pages(gl):
         return_value=httpx.Response(200, json=[mr_json(2), mr_json(9, author="me")])
     )
     respx.get(f"{BASE}/merge_requests", params__contains={"assignee_username": "me"}).mock(
-        return_value=httpx.Response(200, json=[mr_json(3, draft=True)])
+        return_value=httpx.Response(200, json=[mr_json(3, draft=True, labels=["hotfix", "api"])])
     )
     respx.get(f"{BASE}/merge_requests", params__contains={"author_username": "me"}).mock(
         return_value=httpx.Response(200, json=[mr_json(9, author="me")])
@@ -100,12 +100,13 @@ async def test_list_items_merges_roles_and_follows_pages(gl):
     assert set(items) == {1, 2, 3, 9}
     assert items[1].role is Role.REVIEWER and items[9].role is Role.AUTHOR
     assert items[3].draft and items[3].role is Role.AUTHOR  # assignee = owner of the MR
+    assert items[3].labels == ("hotfix", "api") and items[1].labels == ()
     assert items[1].key == f"{HOST}:7:1" and items[1].project == "g/app" and items[1].ref == "!1"
 
 
 @respx.mock
 async def test_details_maps_threads_approvals_and_pipeline(gl):
-    respx.get(MR).mock(return_value=httpx.Response(200, json=mr_json(1, has_conflicts=True,
+    respx.get(MR).mock(return_value=httpx.Response(200, json=mr_json(1, has_conflicts=True, sha="abc123",
                                                                      head_pipeline={"status": "failed"})))
     respx.get(f"{MR}/discussions").mock(return_value=httpx.Response(200, json=[
         {"id": "d1", "notes": [gl_note(10, "me", "why?"), gl_note(11, "alice", "because")]},
@@ -133,6 +134,7 @@ async def test_details_maps_threads_approvals_and_pipeline(gl):
     assert d.changes_requested_by == frozenset({"dave"})
     assert d.pending_reviewers == ("erin",)
     assert d.has_conflicts and d.approvals_left == 1 and d.pipeline == "failed"
+    assert d.head_sha == "abc123"
 
 
 @respx.mock
@@ -224,3 +226,18 @@ async def test_redirect_on_write_is_an_error(gl):
     respx.post(f"{MR}/approve").mock(return_value=httpx.Response(302, headers={"location": "https://x/login"}))
     with pytest.raises(ProviderError):
         await gl.approve(item(Role.REVIEWER, 1))
+
+
+@respx.mock
+async def test_get_by_ref_uses_encoded_project_path(gl):
+    route = respx.get(f"{BASE}/projects/g%2Fsub%2Fapp/merge_requests/42").mock(
+        return_value=httpx.Response(200, json=mr_json(42, author="bob")))
+    it = await gl.get_by_ref("g/sub/app", 42, Role.WATCHER)
+    assert route.called and it.role is Role.WATCHER and it.iid == 42 and it.key == f"{HOST}:7:42"
+
+
+@respx.mock
+async def test_remembers_rate_limit_remaining(gl):
+    respx.get(f"{BASE}/todos").mock(return_value=httpx.Response(200, json=[], headers={"RateLimit-Remaining": "1987"}))
+    await gl.mentions("me", None)
+    assert gl.rate_remaining == 1987

@@ -40,6 +40,12 @@ class User:
     digest_enabled: bool = True
     digest_time: str = "10:00"
     digest_last: str | None = None  # local date (YYYY-MM-DD) of the last daily summary
+    mute_bots: bool = True
+    mute_drafts: bool = True  # events on drafts I'm reviewing wait until the draft is ready
+    muted_projects: frozenset[str] = frozenset()
+    evening_enabled: bool = False
+    evening_time: str = "18:00"
+    evening_last: str | None = None
 
 
 @dataclass(frozen=True)
@@ -55,6 +61,7 @@ class Account:
     last_ok_at: str | None
     last_error: str | None
     mentions_cursor: str | None
+    rate_remaining: int | None = None  # API requests left, as last reported by the host
 
 
 @dataclass(frozen=True)
@@ -85,10 +92,13 @@ _USER_FIELDS = frozenset(
     {
         "chat_id", "username", "lang", "tz", "status", "is_admin", "poll_interval",
         "quiet_enabled", "quiet_from", "quiet_to", "quiet_weekends", "muted_kinds",
-        "digest_enabled", "digest_time", "digest_last",
+        "digest_enabled", "digest_time", "digest_last", "mute_bots", "mute_drafts", "muted_projects",
+        "evening_enabled", "evening_time", "evening_last",
     }
 )
-_ACCOUNT_FIELDS = frozenset({"synced", "last_poll_at", "last_ok_at", "last_error", "mentions_cursor"})
+_ACCOUNT_FIELDS = frozenset(
+    {"synced", "last_poll_at", "last_ok_at", "last_error", "mentions_cursor", "rate_remaining"}
+)
 
 
 def _ts(value: str | None) -> datetime | None:
@@ -113,6 +123,12 @@ def _user(r) -> User:
         digest_enabled=bool(r["digest_enabled"]),
         digest_time=r["digest_time"],
         digest_last=r["digest_last"],
+        mute_bots=bool(r["mute_bots"]),
+        mute_drafts=bool(r["mute_drafts"]),
+        muted_projects=frozenset(json.loads(r["muted_projects"])),
+        evening_enabled=bool(r["evening_enabled"]),
+        evening_time=r["evening_time"],
+        evening_last=r["evening_last"],
     )
 
 
@@ -129,6 +145,7 @@ def _account(r) -> Account:
         last_ok_at=r["last_ok_at"],
         last_error=r["last_error"],
         mentions_cursor=r["mentions_cursor"],
+        rate_remaining=r["rate_remaining"],
     )
 
 
@@ -237,8 +254,9 @@ class Store:
         unknown = set(fields) - _USER_FIELDS
         if unknown:
             raise ValueError(f"unknown user fields: {sorted(unknown)}")
-        if "muted_kinds" in fields:
-            fields["muted_kinds"] = json.dumps(sorted(fields["muted_kinds"]))
+        for name in ("muted_kinds", "muted_projects"):
+            if name in fields:
+                fields[name] = json.dumps(sorted(fields[name]))
         cols = ", ".join(f"{name} = ?" for name in fields)
         await self._write(f"UPDATE users SET {cols} WHERE tg_id = ?", (*fields.values(), tg_id))
 
@@ -387,3 +405,51 @@ class Store:
             (tg_id,),
         )
         return row[0]
+
+    # ---- /watch links ------------------------------------------------------------------------
+
+    async def add_watch_ref(self, account_id: int, project: str, iid: int, now: datetime) -> bool:
+        cur = await self._write(
+            "INSERT INTO watch_refs (account_id, project, iid, created_at) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (account_id, project, iid) DO NOTHING",
+            (account_id, project, iid, iso(now)),
+        )
+        return cur.rowcount == 1
+
+    async def watch_refs(self, account_id: int) -> list[tuple[str, int]]:
+        rows = await self._all(
+            "SELECT project, iid FROM watch_refs WHERE account_id = ? ORDER BY project, iid", (account_id,)
+        )
+        return [(r["project"], r["iid"]) for r in rows]
+
+    async def delete_watch_ref(self, account_id: int, project: str, iid: int) -> None:
+        await self._write(
+            "DELETE FROM watch_refs WHERE account_id = ? AND project = ? AND iid = ?", (account_id, project, iid)
+        )
+
+    # ---- invites and peers -------------------------------------------------------------------
+
+    async def create_invite(self, token: str, created_by: int, now: datetime) -> None:
+        await self._write(
+            "INSERT INTO invites (token, created_by, created_at) VALUES (?, ?, ?)", (token, created_by, iso(now))
+        )
+
+    async def use_invite(self, token: str, tg_id: int, now: datetime, ttl: timedelta = timedelta(days=7)) -> bool:
+        """Single use, valid for `ttl`. Returns whether the invite was valid and is now consumed."""
+        cur = await self._write(
+            "UPDATE invites SET used_by = ?, used_at = ? WHERE token = ? AND used_by IS NULL AND created_at >= ?",
+            (tg_id, iso(now), token, iso(now - ttl)),
+        )
+        return cur.rowcount == 1
+
+    async def find_peer(self, kind: str, host: str, username: str) -> tuple[User, Account] | None:
+        """An active user of this bot who connected `username` on the same host."""
+        rows = await self._all(
+            "SELECT * FROM accounts WHERE kind = ? AND host = ? AND lower(username) = lower(?) ORDER BY id",
+            (kind, host, username),
+        )
+        for row in rows:
+            user = await self.get_user(row["tg_id"])
+            if user is not None and user.status == "active":
+                return user, _account(row)
+        return None

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.core.ball import whose_ball
-from app.core.diff import diff, snapshot
+from app.core.diff import diff, rereview_state, snapshot
 from app.models import Ball, Details, Event, Kind, Note, ReviewItem, Role
 from app.providers.base import AuthError, Provider, ProviderError
 from app.storage.store import Account, Store, Watched
@@ -14,6 +14,9 @@ from app.timeutil import iso, parse_ts
 
 log = logging.getLogger(__name__)
 ESCALATE_AFTER = timedelta(hours=24)
+STALE_REVIEW_AFTER = timedelta(days=2)
+REMINDER_MAX_AGE = timedelta(days=30)
+REMINDERS_PER_TICK = 5  # a big backlog drains a few per poll instead of bursting
 REFRESH_EVERY = timedelta(hours=1)  # conflicts / resolutions don't always bump updated_at
 
 
@@ -31,23 +34,28 @@ async def _emit(store: Store, account: Account, events: list[Event], now: dateti
     return emitted
 
 
-def _escalation(w: Watched, now: datetime, synced: bool) -> list[Event]:
-    if not synced or w.role is not Role.AUTHOR or w.ball is not Ball.THEM or w.item.draft:
+def _reminders(w: Watched, now: datetime, synced: bool) -> list[Event]:
+    """Daily nudges while a move is overdue: my MR waits for reviewers (24 h+), or an MR waits for my
+    review (2 d+). Stop after REMINDER_MAX_AGE so abandoned MRs don't nag forever."""
+    if not synced or w.item.draft or w.ball is Ball.NONE:
         return []
-    if now - w.ball_since < ESCALATE_AFTER:
+    waited = now - w.ball_since
+    if waited > REMINDER_MAX_AGE:
         return []
-    pending = tuple(w.snapshot.get("pending_reviewers", ()))
-    if not pending:
-        return []
-    return [
-        Event(
-            Kind.WAITING_ON_REVIEWER,
-            dedup=f"wait:{w.key}:{now.date().isoformat()}",
-            item=w.item,
-            actors=pending,
-            since=w.ball_since,
-        )
-    ]
+    day = now.date().isoformat()
+    if w.role is Role.AUTHOR and w.ball is Ball.THEM and waited >= ESCALATE_AFTER:
+        pending = tuple(w.snapshot.get("pending_reviewers", ()))
+        if pending:
+            return [
+                Event(Kind.WAITING_ON_REVIEWER, dedup=f"wait:{w.key}:{day}", item=w.item, actors=pending,
+                      since=w.ball_since)
+            ]
+    if w.role is Role.REVIEWER and w.ball is Ball.ME and waited >= STALE_REVIEW_AFTER:
+        return [
+            Event(Kind.STALE_REVIEW, dedup=f"stale:{w.key}:{day}", item=w.item, actor=w.item.author,
+                  since=w.ball_since)
+        ]
+    return []
 
 
 def _refreshed(w: Watched) -> datetime:
@@ -66,26 +74,40 @@ def _already_reviewed(d: Details, me: str) -> bool:
 
 async def _poll_item(
     provider: Provider, store: Store, account: Account, item: ReviewItem, now: datetime
-) -> tuple[list[Event], Watched | None]:
+) -> tuple[list[Event], list[Event], Watched | None]:
+    """Returns (events, reminders, watched-to-save)."""
     me = account.username
     old = await store.get_watched(account.id, item.key)
     unchanged = old is not None and item.updated_at <= old.updated_at_remote and item.role is old.role
     if unchanged and now - _refreshed(old) < REFRESH_EVERY:
-        return _escalation(old, now, account.synced), None
+        return [], _reminders(old, now, account.synced), None
     d = await provider.details(item)
     ball = whose_ball(item, d, me)
     events: list[Event] = []
     if old is None:
         since = item.updated_at
-        if account.synced and item.role is Role.REVIEWER and not _already_reviewed(d, me):
+        # a draft isn't ready for review yet: the request is announced when it leaves draft (below)
+        if account.synced and item.role is Role.REVIEWER and not item.draft and not _already_reviewed(d, me):
             events.append(Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}", item=item, actor=item.author))
+        rereview_since = None
     else:
+        rerev_events, rereview_since = rereview_state(old.snapshot, d, item, me, now)
+        if rereview_since:
+            ball = Ball.ME
         since = old.ball_since if ball == old.ball else item.updated_at
         if account.synced:
-            events += diff(old.snapshot, d, item, me)
-    snap = {**snapshot(d), "refreshed_at": iso(now), "approved_by_me": me in d.approved_by}
+            events += diff(old.snapshot, d, item, me) + rerev_events
+            became_ready = old.item.draft and not item.draft
+            if became_ready and item.role is Role.REVIEWER and not _already_reviewed(d, me):
+                events.append(Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}:ready", item=item, actor=item.author))
+    snap = {
+        **snapshot(d),
+        "refreshed_at": iso(now),
+        "approved_by_me": me in d.approved_by,
+        "rereview_since": rereview_since,
+    }
     w = Watched(account.id, item.key, item.role, item, item.updated_at, snap, ball, since)
-    return events + _escalation(w, now, account.synced), w
+    return events, _reminders(w, now, account.synced), w
 
 
 async def _gone(provider: Provider, w: Watched) -> tuple[list[Event], bool]:
@@ -128,20 +150,46 @@ async def _mentions(provider: Provider, account: Account, now: datetime) -> tupl
 
 
 async def poll_account(provider: Provider, store: Store, account: Account, now: datetime) -> PollResult:
-    items = await provider.list_items(account.username)
+    items = list(await provider.list_items(account.username))
     listed = {i.key for i in items}
     emitted = 0
+    for project, iid in await store.watch_refs(account.id):  # /watch links
+        try:
+            followed = await provider.get_by_ref(project, iid, Role.WATCHER)
+        except AuthError:
+            raise
+        except ProviderError as e:
+            log.warning("watched %s!%s unavailable: %s", project, iid, e)
+            continue
+        if followed.key in listed:  # already mine or on my review — that role wins
+            continue
+        if followed.state != "opened":
+            kind = Kind.MERGED if followed.state == "merged" else Kind.CLOSED
+            emitted += await _emit(store, account, [Event(kind, dedup=f"{followed.state}:{followed.key}", item=followed)], now)
+            await store.delete_watch_ref(account.id, project, iid)
+            continue
+        items.append(followed)
+        listed.add(followed.key)
+    reminders: list[Event] = []
     for item in items:
         try:
-            events, watched = await _poll_item(provider, store, account, item, now)
+            events, due, watched = await _poll_item(provider, store, account, item, now)
         except AuthError:
             raise
         except ProviderError as e:
             log.warning("skipping %s: %s", item.key, e)
             continue
         emitted += await _emit(store, account, events, now)
+        reminders += due
         if watched is not None:
             await store.put_watched(watched)
+    sent_reminders = 0
+    for reminder in reminders:
+        if sent_reminders >= REMINDERS_PER_TICK:
+            break
+        if await store.add_event(account.tg_id, account.id, reminder, now) is not None:
+            sent_reminders += 1
+    emitted += sent_reminders
     for w in await store.list_watched(account.id):
         if w.key in listed:
             continue
@@ -154,11 +202,19 @@ async def poll_account(provider: Provider, store: Store, account: Account, now: 
     return PollResult(emitted, cursor)
 
 
+async def _mark_auth(store: Store, account: Account, now: datetime) -> None:
+    """Record a dead token; tell the user once per breakage, not on every tick."""
+    if account.last_error != "auth":
+        notice = Event(Kind.TOKEN_BROKEN, dedup=f"auth:{account.id}:{iso(now)}", title=account.host)
+        await store.add_event(account.tg_id, account.id, notice, now)
+    await store.update_account(account.id, last_poll_at=iso(now), last_error="auth")
+
+
 async def poll_one(store: Store, provider: Provider, account: Account, now: datetime) -> None:
     try:
         res = await poll_account(provider, store, account, now)
     except AuthError:
-        await store.update_account(account.id, last_poll_at=iso(now), last_error="auth")
+        await _mark_auth(store, account, now)
         return
     except Exception as e:  # noqa: BLE001 — one account must never stop the loop
         log.exception("poll failed for account %s", account.id)
@@ -171,6 +227,7 @@ async def poll_one(store: Store, provider: Provider, account: Account, now: date
         last_ok_at=iso(now),
         last_error=None,
         mentions_cursor=iso(res.mentions_cursor),
+        rate_remaining=getattr(provider, "rate_remaining", None),
     )
 
 
@@ -181,7 +238,7 @@ async def poll_due(store: Store, make: Callable[[Account], Provider], now: datet
             provider = make(account)
         except Exception as e:  # noqa: BLE001 — undecryptable token (secret.key replaced)
             log.warning("account %s unusable: %s", account.id, type(e).__name__)
-            await store.update_account(account.id, last_poll_at=iso(now), last_error="auth")
+            await _mark_auth(store, account, now)
             continue
         await poll_one(store, provider, account, now)
     return len(accounts)

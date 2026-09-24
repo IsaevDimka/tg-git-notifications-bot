@@ -18,6 +18,7 @@ def item(
     draft: bool = False,
     state: str = "opened",
     title: str = "Add login",
+    labels: tuple[str, ...] = (),
 ) -> ReviewItem:
     return ReviewItem(
         kind=kind,
@@ -33,6 +34,7 @@ def item(
         updated_at=parse_ts(updated),
         state=state,
         draft=draft,
+        labels=labels,
     )
 
 
@@ -53,6 +55,7 @@ def details(
     approvals_left: int | None = None,
     state: str = "opened",
     pipeline: str | None = None,
+    head_sha: str | None = None,
 ) -> Details:
     return Details(
         state=state,
@@ -63,4 +66,5 @@ def details(
         has_conflicts=conflicts,
         approvals_left=approvals_left,
         pipeline=pipeline,
+        head_sha=head_sha,
     )

@@ -128,3 +128,19 @@ def test_review_tab_hides_what_i_already_approved():
     assert "Already approved by you: 1" in text
     only_approved = views.render_mr_list([ws[1]], "rev", "en", NOW)
     assert "Nothing waiting" in only_approved and "Already approved by you: 1" in only_approved
+
+
+async def test_muted_project_is_hidden_from_lists(store):
+    from dataclasses import replace as dc_replace
+
+    acc = await _setup(store)
+    await store.update_user(1, muted_projects=frozenset({"g/noisy"}))
+    await store.put_watched(watched(7, account_id=acc.id))
+    noisy = watched(8, account_id=acc.id)
+    noisy = dc_replace(noisy, item=dc_replace(noisy.item, project="g/noisy"))
+    await store.put_watched(noisy)
+    ctx = make_ctx(store)
+    upd = message_update("/mr", lang="en")
+    await views.cmd_mr(upd, ctx)
+    text = upd.effective_chat.send_message.await_args.args[0]
+    assert "!7" in text and "!8" not in text

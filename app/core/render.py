@@ -13,6 +13,8 @@ BODY_LIMIT = 600
 QUOTE_LIMIT = 200
 TITLE_LIMIT = 120
 DIGEST_MAX = 15
+BURST_MIN = 3  # this many comments from one person on one MR in one go → a single message
+BURST_QUOTES = 3
 _THREAD_KINDS = {Kind.NEW_COMMENT, Kind.REPLY_TO_ME, Kind.MENTION}
 
 
@@ -60,7 +62,7 @@ def keyboard(ev: Event, event_id: int, lang: str) -> InlineKeyboardMarkup:
         if ev.resolvable:
             row.append(_btn(lang, "btn.resolve", f"a:resolve:{event_id}"))
         rows.append(row)
-    if ev.kind is Kind.REVIEW_REQUESTED:
+    if ev.kind in (Kind.REVIEW_REQUESTED, Kind.STALE_REVIEW, Kind.PING):
         rows.append([_btn(lang, "btn.approve", f"a:approve:{event_id}")])
     if ev.kind is Kind.WAITING_ON_REVIEWER:
         rows.append([_btn(lang, "btn.ping", f"a:ping:{event_id}")])
@@ -100,3 +102,28 @@ def render_digest(events: list[Event], lang: str) -> str:
     if len(events) > DIGEST_MAX:
         lines.append(t(lang, "digest.more", count=len(events) - DIGEST_MAX))
     return "\n".join(lines)
+
+
+def burst_kinds() -> frozenset[Kind]:
+    return frozenset(_THREAD_KINDS)
+
+
+def render_burst(events: list[Event], last_id: int, lang: str) -> tuple[str, InlineKeyboardMarkup]:
+    """Several comments by one person on one MR (e.g. a submitted GitLab review) as one message."""
+    first = events[0]
+    parts = [t(lang, "ev.burst", actor=esc(f"@{first.actor}"), count=len(events)), "", _link(first)]
+    replies = sum(1 for e in events if e.kind is Kind.REPLY_TO_ME)
+    if replies:
+        parts += ["", t(lang, "ev.burst_replies", count=replies)]
+    parts += [
+        f"<blockquote>{esc(clip(e.note.body, 200))}</blockquote>"
+        for e in events[:BURST_QUOTES]
+        if e.note and e.note.body.strip()
+    ]
+    if len(events) > BURST_QUOTES:
+        parts.append(t(lang, "digest.more", count=len(events) - BURST_QUOTES))
+    row: list[InlineKeyboardButton] = []
+    if url := _url(first):
+        row.append(InlineKeyboardButton(t(lang, "btn.open"), url=url))
+    row.append(_btn(lang, "btn.read", f"a:ri:{last_id}"))
+    return "\n".join(parts), InlineKeyboardMarkup([row])

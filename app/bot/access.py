@@ -11,18 +11,25 @@ from app.i18n import pick_lang, t
 from app.storage.store import Store, User
 
 
-async def register(update, ctx) -> tuple[User, bool]:
+async def register(update, ctx, invite_token: str | None = None) -> tuple[User, bool]:
     tg = update.effective_user
-    cfg, st = deps.cfg(ctx), deps.store(ctx)
+    cfg, st, now = deps.cfg(ctx), deps.store(ctx), timeutil.now()
+    existing = await st.get_user(tg.id)
+    invited = False
+    if invite_token and (existing is None or existing.status == "pending"):
+        invited = await st.use_invite(invite_token, tg.id, now)
     user, created = await st.register_user(
         tg.id,
         update.effective_chat.id,
         tg.username or tg.full_name or str(tg.id),
         pick_lang(tg.language_code),
-        tg.id in cfg.allowed_users,
+        tg.id in cfg.allowed_users or invited,
         cfg.default_poll_interval,
-        timeutil.now(),
+        now,
     )
+    if invited and user.status == "pending":  # asked before, then got an invite link
+        await st.update_user(tg.id, status="active")
+        user = await st.get_user(tg.id)
     if user.status == "blocked":  # they unblocked the bot and pressed /start again
         await st.update_user(tg.id, status="active")
         user = await st.get_user(tg.id)

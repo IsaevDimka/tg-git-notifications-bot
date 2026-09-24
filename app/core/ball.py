@@ -15,6 +15,8 @@ def awaits_me(thread: Thread, me: str) -> bool:
 def whose_ball(item: ReviewItem, d: Details, me: str) -> Ball:
     if d.state != "opened":
         return Ball.NONE
+    if item.role is Role.WATCHER:
+        return Ball.NONE
     if item.role is Role.AUTHOR:
         return _as_author(d, me)
     if item.draft:

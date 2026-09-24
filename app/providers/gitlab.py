@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -30,11 +31,14 @@ class GitLab:
         self.host = host
         self._base = f"https://{host}/api/v4"
         self._client = client
+        self.rate_remaining: int | None = None
         self._headers = {"PRIVATE-TOKEN": token}
 
     # ---- transport ---------------------------------------------------------------------------
 
     def _check(self, r: httpx.Response) -> httpx.Response:
+        if (remaining := r.headers.get("RateLimit-Remaining", "")).isdigit():
+            self.rate_remaining = int(remaining)
         if 300 <= r.status_code < 400:  # never follow: PRIVATE-TOKEN would travel to the new host
             location = r.headers.get("location", "?")
             raise ProviderError(f"{self.host}: redirects to {location} — use the final address", status=r.status_code)
@@ -92,6 +96,7 @@ class GitLab:
             updated_at=parse_ts(mr["updated_at"]),
             state=mr["state"],
             draft=bool(mr.get("draft") or mr.get("work_in_progress")),
+            labels=tuple(mr.get("labels") or ()),
         )
 
     async def list_items(self, me: str) -> list[ReviewItem]:
@@ -110,6 +115,10 @@ class GitLab:
 
     async def fetch_item(self, item: ReviewItem) -> ReviewItem:
         return self._item(await self._get(self._mr_path(item)), item.role)
+
+    async def get_by_ref(self, project: str, iid: int, role: Role) -> ReviewItem:
+        """Look up an MR by its project path (as in the URL) — for /watch."""
+        return self._item(await self._get(f"/projects/{quote(project, safe='')}/merge_requests/{iid}"), role)
 
     async def details(self, item: ReviewItem) -> Details:
         path = self._mr_path(item)
@@ -159,6 +168,7 @@ class GitLab:
             has_conflicts=bool(mr.get("has_conflicts")),
             approvals_left=approvals.get("approvals_left"),
             pipeline=_PIPELINE.get(((mr.get("head_pipeline") or {}).get("status")) or ""),
+            head_sha=mr.get("sha"),
         )
 
     async def mentions(self, me: str, since: datetime | None) -> list[Mention]:

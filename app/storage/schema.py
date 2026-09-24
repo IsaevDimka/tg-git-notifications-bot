@@ -65,4 +65,35 @@ MIGRATIONS: list[str] = [
     ALTER TABLE users ADD COLUMN digest_time TEXT NOT NULL DEFAULT '10:00';
     ALTER TABLE users ADD COLUMN digest_last TEXT;
     """,
+    """
+    ALTER TABLE users ADD COLUMN mute_bots INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE users ADD COLUMN mute_drafts INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE users ADD COLUMN muted_projects TEXT NOT NULL DEFAULT '[]';
+    """,
+    """
+    CREATE TABLE watch_refs (
+        account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project TEXT NOT NULL,
+        iid INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (account_id, project, iid)
+    );
+    """,
+    """
+    ALTER TABLE accounts ADD COLUMN rate_remaining INTEGER;
+    """,
+    """
+    ALTER TABLE users ADD COLUMN evening_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN evening_time TEXT NOT NULL DEFAULT '18:00';
+    ALTER TABLE users ADD COLUMN evening_last TEXT;
+    """,
+    """
+    CREATE TABLE invites (
+        token TEXT PRIMARY KEY,
+        created_by INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        used_by INTEGER,
+        used_at TEXT
+    );
+    """,
 ]

@@ -127,3 +127,86 @@ async def test_one_users_failure_does_not_stop_others(store):
     bot = FakeBot(fail_chat={100: RuntimeError("boom")})
     await deliver_all(bot, store, NOW)
     assert [chat for chat, _, _ in bot.sent] == [200]
+
+
+def by(actor, i, kind=Kind.NEW_COMMENT, iid=1, body=None):
+    return Event(kind, dedup=f"{actor}{i}", item=item(iid=iid), actor=actor,
+                 note=note(i, actor, body or f"comment {i}"), thread_id=f"t{i}")
+
+
+async def test_burst_from_one_person_is_one_message(store):
+    acc, user = await setup(store)
+    for i in range(1, 5):
+        await store.add_event(1, acc.id, by("alice", i, Kind.REPLY_TO_ME if i == 2 else Kind.NEW_COMMENT), NOW)
+    await store.add_event(1, acc.id, by("bob", 9), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 2
+    burst, single = bot.sent[0][1], bot.sent[1][1]
+    assert "@alice" in burst and "4" in burst and "replies to you: 1" in burst
+    assert "comment 1" in burst and "comment 3" in burst and "comment 4" not in burst
+    assert "@bob" in single
+    assert await store.pending_events(1, NOW) == []
+
+
+async def test_two_comments_are_not_a_burst(store):
+    acc, user = await setup(store)
+    await store.add_event(1, acc.id, by("alice", 1), NOW)
+    await store.add_event(1, acc.id, by("alice", 2), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 2
+
+
+async def test_burst_is_per_merge_request(store):
+    acc, user = await setup(store)
+    for i in range(1, 4):
+        await store.add_event(1, acc.id, by("alice", i, iid=1), NOW)
+    for i in range(4, 6):
+        await store.add_event(1, acc.id, by("alice", i, iid=2), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 3
+
+
+async def test_noise_is_swallowed_and_marked_read(store):
+    acc, user = await setup(store, muted_projects=frozenset({"g/other"}))
+    await store.add_event(1, acc.id, by("renovate", 1), NOW)
+    await store.add_event(1, acc.id, Event(Kind.NEW_COMMENT, dedup="dr", item=item(iid=5, draft=True),
+                                           actor="alice", note=note(5, "alice")), NOW)
+    await store.add_event(1, acc.id, by("alice", 7), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, await store.get_user(1), NOW) == 1
+    assert "@alice" in bot.sent[0][1]
+    assert await store.pending_events(1, NOW) == []
+    assert await store.unread_counts(1) == {item(iid=1).key: 1}
+
+
+async def test_urgent_labels_break_through_quiet_hours(store):
+    acc, user = await setup(store, quiet_from="11:00", quiet_to="13:00")
+    urgent = Event(Kind.NEW_COMMENT, dedup="u", item=item(iid=3, labels=("Hotfix",)), actor="alice",
+                   note=note(3, "alice", "prod is down"), thread_id="t")
+    await store.add_event(1, acc.id, urgent, NOW)
+    await store.add_event(1, acc.id, comment(4), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW, urgent_labels=frozenset({"hotfix"})) == 1
+    assert "prod is down" in bot.sent[0][1]
+    assert len(await store.pending_events(1, NOW)) == 1  # the normal one waits for morning
+
+
+async def test_reminders_do_not_break_quiet_hours_even_when_urgent(store):
+    acc, user = await setup(store, quiet_from="11:00", quiet_to="13:00")
+    urgent_item = item(iid=3, labels=("hotfix",))
+    await store.add_event(1, acc.id, Event(Kind.STALE_REVIEW, dedup="s", item=urgent_item, actor="alice",
+                                           since=NOW - timedelta(days=3)), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW, urgent_labels=frozenset({"hotfix"})) == 0
+
+
+async def test_stale_review_reminders_skip_when_morning_summary_covers_them(store):
+    acc, user = await setup(store)
+    stale = Event(Kind.STALE_REVIEW, dedup="s", item=item(iid=3), actor="alice", since=NOW - timedelta(days=3))
+    await store.add_event(1, acc.id, stale, NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 0  # digest on by default
+    await store.update_user(1, digest_enabled=False)
+    await store.add_event(1, acc.id, Event(Kind.STALE_REVIEW, dedup="s2", item=item(iid=4), actor="alice",
+                                           since=NOW - timedelta(days=3)), NOW)
+    assert await deliver_user(bot, store, await store.get_user(1), NOW) == 1

@@ -58,3 +58,11 @@ def test_mentions_user():
     assert not mentions_user("@dimkaa", "dimka")
     assert not mentions_user("mail dimka@corp.com", "dimka")
     assert not mentions_user("@dimka.dev", "dimka")
+
+
+def test_labels_roundtrip_and_old_rows_without_labels():
+    labelled = item(Role.REVIEWER, 2, labels=("Blocker", "backend"))
+    assert item_from_dict(json.loads(json.dumps(item_to_dict(labelled)))) == labelled
+    legacy = item_to_dict(item())
+    legacy.pop("labels")
+    assert item_from_dict(legacy).labels == ()

@@ -4,14 +4,17 @@ A self-hosted Telegram bot that makes sure you never miss a code review on **Git
 It messages you when it's *your move* — so nobody has to ping you by hand.
 
 - 🔔 You were asked to review a merge request
-- ↩️ Someone replied to your comment · ✔️ your thread was resolved or reopened
+- 🔁 The author pushed new commits after your review · ↩️ someone replied to your comment · ✔️ your thread was resolved or reopened
 - 💬 New comments on merge requests you review or own · 📣 @mentions
 - ✅ Approvals, 🔄 change requests, ⚠️ conflicts, 🎉 merged / closed on your own merge requests
 - ⏳ Your merge request has waited 24 h+ for reviewers → one tap posts a friendly reminder
+- ⏰ An MR has waited for *your* review 2+ days → a daily nudge if the morning summary is off (stops after 30 days)
+- 🔑 Your token stopped working → you're told once, instead of the bot going silent
 - Reply, resolve, approve and snooze **right from Telegram**
 - `/inbox` shows only the merge requests where it's your move; `/mr` shows everything
 - Quiet hours and weekends: events wait and arrive as one morning digest
-- Daily summary at your chosen time (can be turned off)
+- Daily summary at your chosen time (can be turned off) and an opt-in evening one — what still waits for your answer
+- Quiet by default for bots (renovate, dependabot…) and drafts you review; `/mute` a whole project
 - Multi-user: one deployment serves your whole team; everyone connects their own token
 - One container, SQLite, no public URL needed (long polling). Russian and English UI.
 
@@ -61,6 +64,7 @@ make backup               # bot.db + secret.key → ./backups (safe while runnin
 | `ALLOWED_USERS` | empty | Comma-separated Telegram user IDs let in without approval |
 | `POLL_INTERVAL` | `180` | Default seconds between checks, per user |
 | `MIN_POLL_INTERVAL` | `60` | Lower bound users can choose in `/settings` |
+| `URGENT_LABELS` | `blocker,hotfix` | MRs with these labels notify even during quiet hours |
 | `LOG_LEVEL` | `INFO` | Python log level |
 
 Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the stored tokens can't be decrypted.
@@ -73,7 +77,12 @@ Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the 
 | `/inbox` | Merge requests where it's your move, with unread counts |
 | `/mr` | Everything you review and everything you authored |
 | `/my` | Only your own merge requests |
+| `/watch <link>` | Follow someone else's MR: approvals, merged, closed |
+| `/mute` | Mute a noisy project (list with buttons, or `/mute group/project`) |
 | `/lang` | Switch language (RU / EN) |
+| `/status` | Is the bot working: last check, errors, API rate limit left |
+| `/test` | Samples of every notification type |
+| `/invite` | One-time link for a colleague (skips admin approval); pings then reach them in Telegram |
 | `/accounts` | Connected accounts, their status; disconnect |
 | `/settings` | Notification types, daily summary on/off and time, check interval, quiet hours, language, time zone |
 | `/help` | Command list |

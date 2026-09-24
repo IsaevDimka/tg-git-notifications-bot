@@ -19,6 +19,7 @@ from app.timeutil import parse_ts
 INTERVALS_MIN = (1, 3, 5, 10, 15)
 QUIET_PRESETS = (("22:00", "09:00"), ("23:00", "08:00"), ("20:00", "10:00"), ("00:00", "07:00"))
 DIGEST_TIMES = ("09:00", "10:00", "11:00", "12:00")
+EVENING_TIMES = ("17:00", "18:00", "19:00", "20:00")
 LANGS = ("ru", "en")
 
 
@@ -47,6 +48,15 @@ def apply(user: User, action: str, min_poll: int) -> dict:
         return {"lang": "en" if user.lang == "ru" else "ru"}
     if action.startswith("lg:") and action.removeprefix("lg:") in LANGS:
         return {"lang": action.removeprefix("lg:")}
+    if action == "mb":
+        return {"mute_bots": not user.mute_bots}
+    if action == "md":
+        return {"mute_drafts": not user.mute_drafts}
+    if action == "ev":
+        return {"evening_enabled": not user.evening_enabled}
+    if action == "evt":
+        idx = EVENING_TIMES.index(user.evening_time) if user.evening_time in EVENING_TIMES else -1
+        return {"evening_time": EVENING_TIMES[(idx + 1) % len(EVENING_TIMES)], "evening_enabled": True}
     if action == "dg":
         return {"digest_enabled": not user.digest_enabled}
     if action == "dgt":
@@ -64,6 +74,8 @@ def settings_view(user: User) -> tuple[str, InlineKeyboardMarkup]:
     rows.append([btn(t(lang, "st.interval", n=user.poll_interval // 60), "st:iv")])
     digest = t(lang, "st.digest_on", time=user.digest_time) if user.digest_enabled else t(lang, "st.digest_off")
     rows.append([btn(digest, "st:dg"), btn(t(lang, "st.digest_time"), "st:dgt")])
+    evening = t(lang, "st.evening_on", time=user.evening_time) if user.evening_enabled else t(lang, "st.evening_off")
+    rows.append([btn(evening, "st:ev"), btn(t(lang, "st.evening_time"), "st:evt")])
     quiet = (
         t(lang, "st.quiet_on", start=user.quiet_from, end=user.quiet_to)
         if user.quiet_enabled
@@ -71,6 +83,10 @@ def settings_view(user: User) -> tuple[str, InlineKeyboardMarkup]:
     )
     rows.append([btn(quiet, "st:q"), btn(t(lang, "st.quiet_period"), "st:qp")])
     rows.append([btn(t(lang, "st.weekends_on" if user.quiet_weekends else "st.weekends_off"), "st:qw")])
+    rows.append([
+        btn(t(lang, "st.bots_muted" if user.mute_bots else "st.bots_shown"), "st:mb"),
+        btn(t(lang, "st.drafts_muted" if user.mute_drafts else "st.drafts_shown"), "st:md"),
+    ])
     rows.append([btn(t(lang, "st.lang"), "st:lang"), btn(t(lang, "st.tz", tz=user.tz or "UTC"), "st:tz")])
     rows.append([btn(t(lang, "st.accounts"), "st:acc")])
     return t(lang, "st.header"), InlineKeyboardMarkup(rows)
@@ -127,6 +143,14 @@ async def cb_settings(update, ctx) -> None:
         return
     if action == "acc":
         await _send_accounts(update, ctx, user)
+        return
+    if action.startswith("mp:"):
+        projects = ctx.user_data.get("mute_projects", [])
+        index = int(action.removeprefix("mp:"))
+        if index < len(projects):
+            user = await _toggle_project(ctx, user, projects[index])
+        text, markup = _mute_view(user, projects)
+        await _edit(q, text, markup)
         return
     st = deps.store(ctx)
     await st.update_user(user.tg_id, **apply(user, action, deps.cfg(ctx).min_poll_interval))
@@ -186,3 +210,40 @@ async def cb_accounts(update, ctx) -> None:
         await q.answer()
     text, markup = accounts_view(await st.accounts_for(user.tg_id), lang, timeutil.now())
     await _edit(q, text, markup)
+
+
+MUTE_BUTTONS = 30
+
+
+async def _toggle_project(ctx, user: User, project: str) -> User:
+    st = deps.store(ctx)
+    await st.update_user(user.tg_id, muted_projects=user.muted_projects ^ {project})
+    return await st.get_user(user.tg_id)
+
+
+def _mute_view(user: User, projects: list[str]) -> tuple[str, InlineKeyboardMarkup | None]:
+    if not projects:
+        return t(user.lang, "mute.empty"), None
+    buttons = [
+        btn(("🔕 " if p in user.muted_projects else "🔔 ") + p, f"st:mp:{i}") for i, p in enumerate(projects[:MUTE_BUTTONS])
+    ]
+    return t(user.lang, "mute.header"), InlineKeyboardMarkup([[b] for b in buttons])
+
+
+async def cmd_mute(update, ctx) -> None:
+    """/mute — pick projects to silence; /mute group/project — toggle one directly."""
+    user = await access.current_user(update, ctx)
+    if user is None:
+        return
+    args = list(getattr(ctx, "args", None) or [])
+    if args:
+        project = args[0].strip()
+        user = await _toggle_project(ctx, user, project)
+        key = "mute.done" if project in user.muted_projects else "mute.undone"
+        await update.effective_chat.send_message(t(user.lang, key, project=esc(project)), parse_mode=ParseMode.HTML)
+        return
+    watched = await deps.store(ctx).watched_for_user(user.tg_id)
+    projects = sorted({w.item.project for w in watched} | set(user.muted_projects))
+    ctx.user_data["mute_projects"] = projects
+    text, markup = _mute_view(user, projects)
+    await update.effective_chat.send_message(text, parse_mode=ParseMode.HTML, reply_markup=markup)

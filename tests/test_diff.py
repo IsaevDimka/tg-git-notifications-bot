@@ -2,7 +2,8 @@ import json
 
 from app.core.diff import diff, snapshot
 from app.models import Kind, Role
-from tests.factories import details, item, note, thread
+from app.timeutil import iso
+from tests.factories import NOW, details, item, note, thread
 
 ME = "me"
 
@@ -95,3 +96,45 @@ def test_rerequest_emits_review_requested():
     [ev] = diff(old, d, item(Role.REVIEWER), ME)
     assert ev.kind is Kind.REVIEW_REQUESTED and ev.actor == "alice"
     assert diff(snapshot(d), d, item(Role.REVIEWER), ME) == []
+
+
+def test_new_commits_after_my_changes_request_ask_for_rereview():
+    from app.core.diff import rereview_state
+
+    old = snapshot(details(cr=[ME], head_sha="aaa"))
+    d = details(cr=[ME], head_sha="bbb")
+    events, since = rereview_state(old, d, item(Role.REVIEWER), ME, NOW)
+    assert [e.kind for e in events] == [Kind.REREVIEW] and events[0].actor == "alice"
+    assert since == iso(NOW)
+
+
+def test_rereview_needs_my_prior_review_and_a_new_commit():
+    from app.core.diff import rereview_state
+
+    untouched = snapshot(details(head_sha="aaa"))
+    assert rereview_state(untouched, details(head_sha="bbb"), item(Role.REVIEWER), ME, NOW) == ([], None)
+    same = snapshot(details(cr=[ME], head_sha="aaa"))
+    assert rereview_state(same, details(cr=[ME], head_sha="aaa"), item(Role.REVIEWER), ME, NOW) == ([], None)
+    first_seen = snapshot(details(cr=[ME]))  # no sha recorded yet
+    assert rereview_state(first_seen, details(cr=[ME], head_sha="bbb"), item(Role.REVIEWER), ME, NOW) == ([], None)
+    mine = snapshot(details(cr=["bob"], head_sha="aaa"))
+    assert rereview_state(mine, details(cr=["bob"], head_sha="bbb"), item(Role.AUTHOR, author=ME), ME, NOW) == ([], None)
+
+
+def test_rereview_clears_when_i_comment_again_or_approve():
+    from app.core.diff import rereview_state
+
+    pending = {**snapshot(details(cr=[ME], head_sha="bbb")), "rereview_since": iso(NOW)}
+    later = "2026-09-24T13:00:00Z"
+    commented = details(thread("t", note(9, ME, "looks good now", at=later)), cr=[ME], head_sha="bbb")
+    assert rereview_state(pending, commented, item(Role.REVIEWER), ME, NOW) == ([], None)
+    approved = details(approved=[ME], head_sha="bbb")
+    assert rereview_state(pending, approved, item(Role.REVIEWER), ME, NOW) == ([], None)
+    still = details(cr=[ME], head_sha="bbb")
+    assert rereview_state(pending, still, item(Role.REVIEWER), ME, NOW) == ([], iso(NOW))
+
+
+def test_watcher_gets_approvals_but_not_comments():
+    old = snapshot(details())
+    d = details(thread("t1", note(1, "bob", "nit")), approved=["carol"])
+    assert [e.kind for e in diff(old, d, item(Role.WATCHER), ME)] == [Kind.APPROVED]

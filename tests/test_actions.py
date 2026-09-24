@@ -121,3 +121,29 @@ async def test_snooze_flow(store):
     await actions.cb_action(callback_update(f"a:sz:{ids['comment']}:2h", lang="en"), ctx)
     ev = await store.get_event(ids["comment"], 1)
     assert ev.delivered_at is None and ev.snoozed_until is not None
+
+
+async def test_read_item_marks_every_event_of_that_mr(store):
+    ctx, _, ids = await setup(store)
+    acc = (await store.accounts_for(1))[0]
+    extra = await store.add_event(1, acc.id, Event(Kind.NEW_COMMENT, dedup="x", item=item(Role.REVIEWER, 42),
+                                                   actor="bob", note=note(5, "bob")), NOW)
+    await actions.cb_action(callback_update(f"a:ri:{extra}", lang="en"), ctx)
+    assert (await store.get_event(ids["comment"], 1)).read_at is not None
+    assert (await store.get_event(extra, 1)).read_at is not None
+    assert (await store.get_event(ids["review"], 1)).read_at is None
+
+
+async def test_ping_reaches_colleagues_in_the_bot_via_telegram(store):
+    ctx, provider, ids = await setup(store)
+    await store.register_user(2, 2, "bob-tg", "en", True, 180, NOW)
+    bob_acc = await store.add_account(2, "gitlab", "gitlab.example.com", "bob", "s", NOW)
+    upd = callback_update(f"a:ping!:{ids['wait']}", lang="en")
+    await actions.cb_action(upd, ctx)
+    [(name, _key, body)] = provider.calls  # only carol (not in the bot) gets an MR comment
+    assert name == "comment" and body.startswith("@carol") and "@bob" not in body
+    [ping] = await store.pending_events(2, NOW)
+    assert ping.event.kind is Kind.PING and ping.event.actor == "me" and ping.account_id == bob_acc.id
+    assert ping.event.item.role is Role.REVIEWER
+    toast = upd.callback_query.answer.await_args.args[0]
+    assert "@bob" in toast and "@carol" in toast

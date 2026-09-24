@@ -15,14 +15,14 @@ from telegram.ext import (
 )
 
 from app import timeutil
-from app.bot import access, actions, inputs, onboarding, settings, views
+from app.bot import access, actions, inputs, onboarding, settings, status, views, watch
 from app.bot.commands import bot_commands
 from app.bot.daily import send_daily
 from app.config import Config, ensure_writable, load_config
 from app.core.delivery import deliver_all
 from app.core.poller import poll_due
 from app.crypto import TokenBox
-from app.health import beat
+from app.health import safe_beat
 from app.logs import setup_logging
 from app.providers import make_provider
 from app.storage.store import Store
@@ -38,6 +38,11 @@ COMMAND_HANDLERS = (
     ("inbox", views.cmd_inbox),
     ("settings", settings.cmd_settings),
     ("lang", settings.cmd_lang),
+    ("mute", settings.cmd_mute),
+    ("watch", watch.cmd_watch),
+    ("status", status.cmd_status),
+    ("invite", onboarding.cmd_invite),
+    ("test", status.cmd_test),
     ("accounts", settings.cmd_accounts),
 )
 CALLBACKS = (
@@ -48,6 +53,7 @@ CALLBACKS = (
     ("^ib:", views.cb_inbox),
     ("^st:", settings.cb_settings),
     ("^acc:", settings.cb_accounts),
+    ("^wt:", watch.cb_watch),
 )
 
 
@@ -64,7 +70,7 @@ async def _poll_loop(app: Application) -> None:
             await poll_due(store, lambda acc: make(acc.kind, acc.host, box.open(acc.token_enc)), timeutil.now())
         except Exception:
             log.exception("poll cycle failed")
-        beat(cfg.data_dir)
+        safe_beat(cfg.data_dir)
         await asyncio.sleep(POLL_TICK)
 
 
@@ -72,7 +78,7 @@ async def _delivery_loop(app: Application) -> None:
     store = app.bot_data["store"]
     while True:
         try:
-            await deliver_all(app.bot, store, timeutil.now())
+            await deliver_all(app.bot, store, timeutil.now(), app.bot_data["cfg"].urgent_labels)
             await send_daily(app.bot, store, timeutil.now())
         except Exception:
             log.exception("delivery cycle failed")
@@ -122,10 +128,16 @@ def build_app(cfg: Config) -> Application:
     )
     app.bot_data["cfg"] = cfg
     for name, handler in COMMAND_HANDLERS:
-        app.add_handler(CommandHandler(name, handler))
+        # /start explains itself in groups; everything else shows private MR data → private chats only
+        only = None if name == "start" else filters.ChatType.PRIVATE
+        app.add_handler(CommandHandler(name, handler, filters=only))
     for pattern, handler in CALLBACKS:
         app.add_handler(CallbackQueryHandler(handler, pattern=pattern))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, inputs.on_text))
+    app.add_handler(
+        MessageHandler(
+            filters.UpdateType.MESSAGE & filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, inputs.on_text
+        )
+    )
     app.add_error_handler(_on_error)
     return app
 

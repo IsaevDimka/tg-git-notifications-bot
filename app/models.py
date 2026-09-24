@@ -11,6 +11,7 @@ from app.timeutil import iso, parse_ts
 class Role(StrEnum):
     REVIEWER = "reviewer"
     AUTHOR = "author"
+    WATCHER = "watcher"  # followed by link via /watch — someone else's MR
 
 
 class Ball(StrEnum):
@@ -32,6 +33,10 @@ class Kind(StrEnum):
     CLOSED = "closed"
     CONFLICT = "conflict"
     WAITING_ON_REVIEWER = "waiting_on_reviewer"
+    TOKEN_BROKEN = "token_broken"
+    REREVIEW = "rereview"
+    STALE_REVIEW = "stale_review"
+    PING = "ping"  # a colleague in this bot asked you to look at an MR
 
 
 @dataclass(frozen=True)
@@ -49,6 +54,7 @@ class ReviewItem:
     updated_at: datetime
     state: str = "opened"  # opened | merged | closed
     draft: bool = False
+    labels: tuple[str, ...] = ()
 
     @property
     def key(self) -> str:
@@ -90,6 +96,7 @@ class Details:
     has_conflicts: bool
     approvals_left: int | None  # None = unknown (GitHub)
     pipeline: str | None  # success | failed | running | None
+    head_sha: str | None = None  # last commit; a change after my review means "look again"
 
 
 @dataclass(frozen=True)
@@ -135,6 +142,7 @@ def item_from_dict(d: dict) -> ReviewItem:
         **{
             **d,
             "role": Role(d["role"]),
+            "labels": tuple(d.get("labels", ())),
             "created_at": parse_ts(d["created_at"]),
             "updated_at": parse_ts(d["updated_at"]),
         }

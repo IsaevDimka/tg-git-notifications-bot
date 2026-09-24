@@ -19,6 +19,7 @@ query($owner: String!, $name: String!, $number: Int!) {
     pullRequest(number: $number) {
       state
       mergeable
+      headRefOid
       reviewRequests(first: 50) { nodes { requestedReviewer { ... on User { login } } } }
       latestOpinionatedReviews(first: 50) { nodes { state author { login } } }
       reviews(last: 50) { nodes { databaseId body createdAt url author { login } } }
@@ -57,6 +58,7 @@ class GitHub:
 
     def __init__(self, token: str, client: httpx.AsyncClient):
         self._client = client
+        self.rate_remaining: int | None = None
         self._headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
@@ -66,6 +68,8 @@ class GitHub:
     # ---- transport ---------------------------------------------------------------------------
 
     def _check(self, r: httpx.Response) -> httpx.Response:
+        if (remaining := r.headers.get("x-ratelimit-remaining", "")).isdigit():
+            self.rate_remaining = int(remaining)
         if 300 <= r.status_code < 400:
             location = r.headers.get("location", "?")
             raise ProviderError(f"github.com: redirects to {location}", status=r.status_code)
@@ -112,6 +116,7 @@ class GitHub:
             updated_at=parse_ts(pr["updated_at"]),
             state=state,
             draft=bool(pr.get("draft")),
+            labels=tuple(label["name"] for label in pr.get("labels") or () if label.get("name")),
         )
 
     async def _search(self, query: str) -> list[dict]:
@@ -132,9 +137,12 @@ class GitHub:
         return list(found.values())
 
     async def fetch_item(self, item: ReviewItem) -> ReviewItem:
-        pr = (await self._req("GET", f"{self._repo(item)}/pulls/{item.iid}")).json()
+        return await self.get_by_ref(item.project_id, item.iid, item.role)
+
+    async def get_by_ref(self, project: str, iid: int, role: Role) -> ReviewItem:
+        pr = (await self._req("GET", f"/repos/{project}/pulls/{iid}")).json()
         state = "merged" if pr.get("merged") else ("opened" if pr["state"] == "open" else "closed")
-        return self._item(pr, item.role, item.project_id, state)
+        return self._item(pr, role, project, state)
 
     async def details(self, item: ReviewItem) -> Details:
         owner, name = item.project_id.split("/", 1)
@@ -165,6 +173,7 @@ class GitHub:
             has_conflicts=pr.get("mergeable") == "CONFLICTING",
             approvals_left=None,
             pipeline=_ROLLUP.get(rollup or ""),
+            head_sha=pr.get("headRefOid"),
         )
 
     async def mentions(self, me: str, since: datetime | None) -> list[Mention]:

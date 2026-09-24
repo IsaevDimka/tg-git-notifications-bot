@@ -98,6 +98,7 @@ async def test_details_from_graphql(gh):
     pr = {
         "state": "OPEN",
         "mergeable": "CONFLICTING",
+        "headRefOid": "def456",
         "reviewRequests": {"nodes": [{"requestedReviewer": {"login": "erin"}}, {"requestedReviewer": {}}]},
         "latestOpinionatedReviews": {"nodes": [
             {"state": "APPROVED", "author": {"login": "bob"}},
@@ -127,6 +128,7 @@ async def test_details_from_graphql(gh):
     assert d.approved_by == frozenset({"bob"}) and d.changes_requested_by == frozenset({"dave"})
     assert d.pending_reviewers == ("erin",)
     assert d.has_conflicts and d.pipeline == "failed" and d.approvals_left is None and d.state == "opened"
+    assert d.head_sha == "def456"
 
 
 @respx.mock
@@ -210,9 +212,25 @@ async def test_assigned_pr_counts_as_mine(gh):
     def respond(request):
         q = request.url.params["q"]
         if "assignee:me" in q:
-            return httpx.Response(200, json={"items": [search_pr(4, author="bob")]})
+            return httpx.Response(200, json={"items": [search_pr(4, author="bob", labels=[{"name": "blocker"}])]})
         return httpx.Response(200, json={"items": []})
 
     respx.get(f"{API}/search/issues").mock(side_effect=respond)
     [it] = await gh.list_items("me")
-    assert it.iid == 4 and it.role is Role.AUTHOR
+    assert it.iid == 4 and it.role is Role.AUTHOR and it.labels == ("blocker",)
+
+
+@respx.mock
+async def test_get_by_ref(gh):
+    respx.get(f"{API}/repos/acme/app/pulls/5").mock(return_value=httpx.Response(200, json={
+        **search_pr(5, author="bob"), "state": "open", "merged": False}))
+    it = await gh.get_by_ref("acme/app", 5, Role.WATCHER)
+    assert it.role is Role.WATCHER and it.state == "opened" and it.key == "github.com:acme/app:5"
+
+
+@respx.mock
+async def test_remembers_rate_limit_remaining(gh):
+    respx.get(f"{API}/user").mock(return_value=httpx.Response(200, json={"login": "me"},
+                                                              headers={"x-ratelimit-remaining": "4990"}))
+    await gh.whoami()
+    assert gh.rate_remaining == 4990

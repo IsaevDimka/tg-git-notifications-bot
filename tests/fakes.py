@@ -18,7 +18,9 @@ class FakeProvider:
         self.mention_list: list[Mention] = []
         self.mentions_error: Exception | None = None
         self.write_error: Exception | None = None
+        self.by_ref: dict[tuple[str, int], ReviewItem | Exception] = {}
         self.calls: list[tuple] = []
+        self.rate_remaining: int | None = None
 
     async def whoami(self) -> Identity:
         if self.whoami_error:
@@ -67,3 +69,12 @@ class FakeProvider:
 
     async def comment(self, item, body):
         await self._write("comment", item.key, body)
+
+    async def get_by_ref(self, project: str, iid: int, role) -> ReviewItem:
+        self.calls.append(("get_by_ref", project, iid))
+        result = self.by_ref.get((project, iid), ProviderError("not found", status=404))
+        if isinstance(result, Exception):
+            raise result
+        from dataclasses import replace
+
+        return replace(result, role=role)

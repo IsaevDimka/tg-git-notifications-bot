@@ -143,3 +143,48 @@ async def test_digest_defaults_and_update(store):
     await store.update_user(1, digest_enabled=False, digest_time="09:00", digest_last="2026-09-24")
     user = await store.get_user(1)
     assert (user.digest_enabled, user.digest_time, user.digest_last) == (False, "09:00", "2026-09-24")
+
+
+async def test_noise_settings_defaults_and_update(store):
+    user = await _user(store, 1)
+    assert user.mute_bots and user.mute_drafts and user.muted_projects == frozenset()
+    await store.update_user(1, mute_bots=False, muted_projects=frozenset({"g/app"}))
+    user = await store.get_user(1)
+    assert not user.mute_bots and user.muted_projects == frozenset({"g/app"})
+
+
+async def test_watch_refs(store):
+    await _user(store, 1)
+    acc = await store.add_account(1, "gitlab", "gitlab.example.com", "me", "s", NOW)
+    assert await store.add_watch_ref(acc.id, "g/app", 5, NOW)
+    assert not await store.add_watch_ref(acc.id, "g/app", 5, NOW)
+    await store.add_watch_ref(acc.id, "g/lib", 7, NOW)
+    assert await store.watch_refs(acc.id) == [("g/app", 5), ("g/lib", 7)]
+    await store.delete_watch_ref(acc.id, "g/app", 5)
+    assert await store.watch_refs(acc.id) == [("g/lib", 7)]
+
+
+async def test_evening_summary_defaults(store):
+    user = await _user(store, 1)
+    assert not user.evening_enabled and user.evening_time == "18:00" and user.evening_last is None
+
+
+async def test_invites_single_use_and_expiring(store):
+    await _user(store, 1)
+    await store.create_invite("tok1", 1, NOW)
+    assert await store.use_invite("tok1", 2, NOW + timedelta(days=1))
+    assert not await store.use_invite("tok1", 3, NOW + timedelta(days=1))  # already used
+    await store.create_invite("tok2", 1, NOW)
+    assert not await store.use_invite("tok2", 4, NOW + timedelta(days=8))  # expired
+    assert not await store.use_invite("nope", 5, NOW)
+
+
+async def test_find_peer_by_host_and_username(store):
+    await _user(store, 1)
+    await _user(store, 2, preapproved=True)
+    acc = await store.add_account(2, "gitlab", "gitlab.example.com", "Bob", "s", NOW)
+    user, account = await store.find_peer("gitlab", "gitlab.example.com", "bob")
+    assert user.tg_id == 2 and account.id == acc.id
+    assert await store.find_peer("gitlab", "other.host", "bob") is None
+    await store.update_user(2, status="blocked")
+    assert await store.find_peer("gitlab", "gitlab.example.com", "bob") is None
