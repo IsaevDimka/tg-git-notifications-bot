@@ -1,5 +1,6 @@
 """/watch <MR link> — follow someone else's merge request: approvals, merged, closed."""
 
+import hashlib
 import re
 
 import httpx
@@ -18,6 +19,11 @@ from app.storage.store import User
 _GITHUB = re.compile(r"^https?://github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)", re.IGNORECASE)
 _GITLAB = re.compile(r"^https?://([^/\s]+)/(.+?)/-/merge_requests/(\d+)", re.IGNORECASE)
 LIST_MAX = 20
+
+
+def ref_id(account_id: int, project: str, iid: int) -> str:
+    """Stable short id for a followed MR in callback data (an index would shift when the list changes)."""
+    return hashlib.sha1(f"{account_id}:{project}:{iid}".encode()).hexdigest()[:10]
 
 
 def parse_mr_url(url: str) -> tuple[str, str, str, int] | None:
@@ -44,10 +50,10 @@ def _list_view(user: User, refs: list[tuple[int, str, str, int]]) -> tuple[str, 
         return t(user.lang, "watch.empty"), None
     lines = [t(user.lang, "watch.header"), ""]
     buttons = []
-    for i, (_, kind, project, iid) in enumerate(refs[:LIST_MAX]):
+    for account_id, kind, project, iid in refs[:LIST_MAX]:
         ref = f"{project}{'#' if kind == 'github' else '!'}{iid}"
         lines.append(f"👁 <code>{esc(ref)}</code>")
-        buttons.append([btn(f"✖ {ref}", f"wt:rm:{i}")])
+        buttons.append([btn(f"✖ {ref}", f"wt:rm:{ref_id(account_id, project, iid)}")])
     return "\n".join(lines), InlineKeyboardMarkup(buttons)
 
 
@@ -58,9 +64,7 @@ async def cmd_watch(update, ctx) -> None:
     chat, lang = update.effective_chat, user.lang
     args = list(getattr(ctx, "args", None) or [])
     if not args:
-        refs = await _refs(ctx, user)
-        ctx.user_data["watch_refs"] = refs
-        text, markup = _list_view(user, refs)
+        text, markup = _list_view(user, await _refs(ctx, user))
         await chat.send_message(text, parse_mode=ParseMode.HTML, reply_markup=markup)
         return
     parsed = parse_mr_url(args[0])
@@ -92,15 +96,12 @@ async def cb_watch(update, ctx) -> None:
     user = await access.current_user(update, ctx)
     if user is None:
         return
-    refs = ctx.user_data.get("watch_refs", [])
-    index = int(q.data.removeprefix("wt:rm:"))
+    wanted = q.data.removeprefix("wt:rm:")
     st = deps.store(ctx)
-    if index < len(refs):
-        account_id, _, project, iid = refs[index]
-        account = await st.get_account(account_id)
-        if account is not None and account.tg_id == user.tg_id:
+    for account_id, _, project, iid in await _refs(ctx, user):  # only the user's own accounts
+        if ref_id(account_id, project, iid) == wanted:
             await st.delete_watch_ref(account_id, project, iid)
+            break
     refs = await _refs(ctx, user)
-    ctx.user_data["watch_refs"] = refs
     text, markup = _list_view(user, refs)
     await q.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)

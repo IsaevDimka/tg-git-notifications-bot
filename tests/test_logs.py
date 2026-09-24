@@ -30,3 +30,9 @@ def test_formatter_redacts_exception_text():
     except RuntimeError:
         record = logging.LogRecord("x", logging.ERROR, __file__, 1, "boom", None, sys.exc_info())
     assert "ABCDEFGH" not in fmt.format(record)
+
+
+def test_redacts_bare_telegram_token():
+    out = redact("The token `1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi` was rejected")
+    assert "ABCDEFGH" not in out and "[REDACTED]" in out
+    assert redact("MR !1234567 at 10:30") == "MR !1234567 at 10:30"

@@ -1,5 +1,6 @@
 """/settings (notification types, polling, quiet hours, language, time zone) and /accounts."""
 
+import hashlib
 from datetime import datetime
 
 from telegram import BotCommandScopeChat, InlineKeyboardMarkup
@@ -145,10 +146,11 @@ async def cb_settings(update, ctx) -> None:
         await _send_accounts(update, ctx, user)
         return
     if action.startswith("mp:"):
-        projects = ctx.user_data.get("mute_projects", [])
-        index = int(action.removeprefix("mp:"))
-        if index < len(projects):
-            user = await _toggle_project(ctx, user, projects[index])
+        projects = await _mute_projects(ctx, user)
+        wanted = action.removeprefix("mp:")
+        match = next((p for p in projects if project_ref(p) == wanted), None)
+        if match is not None:
+            user = await _toggle_project(ctx, user, match)
         text, markup = _mute_view(user, projects)
         await _edit(q, text, markup)
         return
@@ -215,6 +217,16 @@ async def cb_accounts(update, ctx) -> None:
 MUTE_BUTTONS = 30
 
 
+def project_ref(project: str) -> str:
+    """Stable short id for a project in callback data (an index would shift when the list changes)."""
+    return hashlib.sha1(project.encode()).hexdigest()[:8]
+
+
+async def _mute_projects(ctx, user: User) -> list[str]:
+    watched = await deps.store(ctx).watched_for_user(user.tg_id)
+    return sorted({w.item.project for w in watched} | set(user.muted_projects))
+
+
 async def _toggle_project(ctx, user: User, project: str) -> User:
     st = deps.store(ctx)
     await st.update_user(user.tg_id, muted_projects=user.muted_projects ^ {project})
@@ -225,7 +237,7 @@ def _mute_view(user: User, projects: list[str]) -> tuple[str, InlineKeyboardMark
     if not projects:
         return t(user.lang, "mute.empty"), None
     buttons = [
-        btn(("🔕 " if p in user.muted_projects else "🔔 ") + p, f"st:mp:{i}") for i, p in enumerate(projects[:MUTE_BUTTONS])
+        btn(("🔕 " if p in user.muted_projects else "🔔 ") + p, f"st:mp:{project_ref(p)}") for p in projects[:MUTE_BUTTONS]
     ]
     return t(user.lang, "mute.header"), InlineKeyboardMarkup([[b] for b in buttons])
 
@@ -242,8 +254,6 @@ async def cmd_mute(update, ctx) -> None:
         key = "mute.done" if project in user.muted_projects else "mute.undone"
         await update.effective_chat.send_message(t(user.lang, key, project=esc(project)), parse_mode=ParseMode.HTML)
         return
-    watched = await deps.store(ctx).watched_for_user(user.tg_id)
-    projects = sorted({w.item.project for w in watched} | set(user.muted_projects))
-    ctx.user_data["mute_projects"] = projects
+    projects = await _mute_projects(ctx, user)
     text, markup = _mute_view(user, projects)
     await update.effective_chat.send_message(text, parse_mode=ParseMode.HTML, reply_markup=markup)

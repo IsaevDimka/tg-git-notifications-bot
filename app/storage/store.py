@@ -179,7 +179,11 @@ async def _migrate(db: aiosqlite.Connection) -> None:
     async with db.execute("PRAGMA user_version") as cur:
         (version,) = await cur.fetchone()
     for number, sql in enumerate(MIGRATIONS[version:], start=version + 1):
-        await db.executescript(f"{sql}\nPRAGMA user_version = {number};")
+        try:  # all-or-nothing per migration: a crash mid-way must not leave half the ALTERs applied
+            await db.executescript(f"BEGIN;\n{sql}\nPRAGMA user_version = {number};\nCOMMIT;")
+        except Exception:
+            await db.execute("ROLLBACK")
+            raise
     await db.commit()
 
 
@@ -194,7 +198,11 @@ class Store:
         await db.execute("PRAGMA foreign_keys = ON")
         if str(path) != ":memory:":
             await db.execute("PRAGMA journal_mode = WAL")
-        await _migrate(db)
+        try:
+            await _migrate(db)
+        except Exception:
+            await db.close()
+            raise
         return cls(db)
 
     async def close(self) -> None:

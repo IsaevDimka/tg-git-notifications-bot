@@ -59,6 +59,8 @@ async def test_list_and_unwatch(store):
     await store.add_watch_ref(acc.id, "g/app", 42, NOW)
     upd = message_update("/watch", lang="en")
     await watch.cmd_watch(upd, ctx)
-    assert callbacks(upd.effective_chat.send_message.await_args.kwargs["reply_markup"]) == ["wt:rm:0"]
-    await watch.cb_watch(callback_update("wt:rm:0", lang="en"), ctx)
-    assert await store.watch_refs(acc.id) == []
+    ref = watch.ref_id(acc.id, "g/app", 42)
+    assert callbacks(upd.effective_chat.send_message.await_args.kwargs["reply_markup"]) == [f"wt:rm:{ref}"]
+    await store.add_watch_ref(acc.id, "a/first", 1, NOW)  # list changes before the old button is tapped
+    await watch.cb_watch(callback_update(f"wt:rm:{ref}", lang="en"), ctx)
+    assert await store.watch_refs(acc.id) == [("a/first", 1)]

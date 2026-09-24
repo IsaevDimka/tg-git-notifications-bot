@@ -32,8 +32,8 @@ def test_digest_respects_weekends_and_quiet_hours():
     saturday = datetime(2026, 9, 26, 7, 30, tzinfo=UTC)
     assert digest_due(USER, saturday) is None
     assert digest_due(replace(USER, quiet_weekends=False), saturday) == "2026-09-26"
-    early = replace(USER, digest_time="09:00", quiet_to="10:00")
-    assert digest_due(early, datetime(2026, 9, 24, 6, 30, tzinfo=UTC)) is None  # 09:30 MSK, still quiet
+    early = replace(USER, digest_time="09:00", quiet_to="10:00")  # a chosen time wins over quiet hours
+    assert digest_due(early, datetime(2026, 9, 24, 6, 30, tzinfo=UTC)) == "2026-09-24"
 
 
 def test_render_daily_sections():
@@ -108,3 +108,10 @@ async def test_evening_summary_lists_only_my_moves(store):
     text = bot.sent[0][1]
     assert "Before you wrap up" in text and "!7" in text and "waiting for reviewers" not in text
     assert (await store.get_user(1)).evening_last == "2026-09-24"
+
+
+def test_evening_summary_inside_quiet_hours_still_goes_out():
+    from app.bot.daily import evening_due
+
+    user = replace(USER, evening_enabled=True, evening_time="20:00", quiet_from="20:00", quiet_to="10:00")
+    assert evening_due(user, datetime(2026, 9, 24, 17, 30, tzinfo=UTC)) == "2026-09-24"  # 20:30 MSK

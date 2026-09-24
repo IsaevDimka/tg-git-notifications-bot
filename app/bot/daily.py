@@ -7,7 +7,7 @@ from telegram.constants import ParseMode
 
 from app.bot.views import mr_line
 from app.core.noise import visible
-from app.core.quiet import is_quiet, user_zone
+from app.core.quiet import user_zone
 from app.core.render import NO_PREVIEW
 from app.i18n import t
 from app.models import Ball, Role
@@ -18,9 +18,12 @@ SECTION_MAX = 5
 
 
 def _due(user: User, now: datetime, enabled: bool, at: str, last: str | None) -> str | None:
-    if not enabled or is_quiet(user, now):
+    """A time the user picked explicitly wins over quiet hours; quiet weekends still apply."""
+    if not enabled:
         return None
     local = now.astimezone(user_zone(user.tz))
+    if user.quiet_enabled and user.quiet_weekends and local.weekday() >= 5:
+        return None
     if local.time() < time.fromisoformat(at):
         return None
     today = local.date().isoformat()

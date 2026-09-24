@@ -125,7 +125,9 @@ class Event:
 
     @property
     def item_key(self) -> str:
-        return self.item.key if self.item else f"mention:{self.dedup}"
+        if self.item:
+            return self.item.key
+        return f"mention:{self.dedup}" if self.kind is Kind.MENTION else f"notice:{self.dedup}"
 
 
 def mentions_user(body: str, username: str) -> bool:

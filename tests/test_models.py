@@ -66,3 +66,7 @@ def test_labels_roundtrip_and_old_rows_without_labels():
     legacy = item_to_dict(item())
     legacy.pop("labels")
     assert item_from_dict(legacy).labels == ()
+
+
+def test_notices_are_not_counted_as_mentions():
+    assert Event(Kind.TOKEN_BROKEN, dedup="auth:1:never", title="h").item_key == "notice:auth:1:never"

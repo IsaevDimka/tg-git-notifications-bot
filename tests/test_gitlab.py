@@ -241,3 +241,19 @@ async def test_remembers_rate_limit_remaining(gl):
     respx.get(f"{BASE}/todos").mock(return_value=httpx.Response(200, json=[], headers={"RateLimit-Remaining": "1987"}))
     await gl.mentions("me", None)
     assert gl.rate_remaining == 1987
+
+
+@respx.mock
+async def test_approving_twice_is_not_a_dead_token(gl):
+    respx.post(f"{MR}/approve").mock(return_value=httpx.Response(401))
+    respx.get(f"{BASE}/user").mock(return_value=httpx.Response(200, json={"username": "me"}))
+    respx.get(f"{BASE}/personal_access_tokens/self").mock(return_value=httpx.Response(404))
+    await gl.approve(item(Role.REVIEWER, 1))  # GitLab answers 401 when you've already approved
+
+
+@respx.mock
+async def test_approve_with_a_dead_token_still_says_so(gl):
+    respx.post(f"{MR}/approve").mock(return_value=httpx.Response(401))
+    respx.get(f"{BASE}/user").mock(return_value=httpx.Response(401))
+    with pytest.raises(AuthError):
+        await gl.approve(item(Role.REVIEWER, 1))

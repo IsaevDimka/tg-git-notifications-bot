@@ -188,3 +188,19 @@ async def test_find_peer_by_host_and_username(store):
     assert await store.find_peer("gitlab", "other.host", "bob") is None
     await store.update_user(2, status="blocked")
     assert await store.find_peer("gitlab", "gitlab.example.com", "bob") is None
+
+
+async def test_failed_migration_rolls_back_and_can_be_retried(tmp_path, monkeypatch):
+    import app.storage.store as store_mod
+
+    path = tmp_path / "bot.db"
+    good = list(store_mod.MIGRATIONS)
+    broken = "ALTER TABLE users ADD COLUMN extra INTEGER;\nALTER TABLE no_such_table ADD COLUMN y INTEGER;"
+    monkeypatch.setattr(store_mod, "MIGRATIONS", [*good, broken])
+    with pytest.raises(Exception, match="no_such_table"):
+        await Store.open(path)
+    monkeypatch.setattr(store_mod, "MIGRATIONS", [*good, "ALTER TABLE users ADD COLUMN extra INTEGER;"])
+    s = await Store.open(path)  # a half-applied first ALTER would fail here with "duplicate column"
+    async with s.db.execute("PRAGMA user_version") as cur:
+        assert (await cur.fetchone())[0] == len(good) + 1
+    await s.close()
