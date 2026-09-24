@@ -1,5 +1,7 @@
 # tg-git-notifications-bot
 
+**Сайт:** https://isaevdimka.github.io/tg-git-notifications-bot/?lang=ru · [English](README.md)
+
 Self-hosted Telegram-бот, который не даёт пропустить код-ревью в **GitLab** и **GitHub**.
 Пишет, когда **ход за тобой**, — и никому не приходится пинговать тебя руками.
 

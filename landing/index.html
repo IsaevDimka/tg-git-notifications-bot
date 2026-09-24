@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en" data-l="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tg-git-notifications-bot — never miss a code review</title>
+<meta name="description" content="Self-hosted Telegram bot for GitLab and GitHub. Tells each person when a merge request needs their move, and lets them reply, resolve or approve from the chat.">
+<link rel="canonical" href="https://isaevdimka.github.io/tg-git-notifications-bot/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://isaevdimka.github.io/tg-git-notifications-bot/">
+<meta property="og:title" content="Stop pinging people about code review">
+<meta property="og:description" content="A self-hosted Telegram bot for GitLab and GitHub that tells each person when it's their move on a merge request.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔔</text></svg>">
+<script>
+  // apply the saved theme before first paint so there's no flash
+  try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f8fa; --card:#ffffff; --ink:#1f2328; --muted:#59636e; --line:#d1d9e0;
+  --add:#1a7f37; --add-bg:#dafbe1; --add-gutter:#aceebb;
+  --del:#cf222e; --del-bg:#ffebe9; --del-gutter:#ffcecb;
+  --hl:#fff8c5; --tg:#2aabee; --tg-bubble:#ffffff; --tg-chat:#dbe7ef; --focus:#0969da;
+  --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
+  --sans:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+/* theme: system by default, overridable with the toggle (stored in localStorage) */
+:root[data-theme="dark"]{
+  --paper:#0d1117; --card:#151b23; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
+  --add:#3fb950; --add-bg:#12261e; --add-gutter:#1b4721;
+  --del:#f85149; --del-bg:#25171c; --del-gutter:#5d1f24;
+  --hl:#3b2e0a; --tg-bubble:#1f2a36; --tg-chat:#0f1a24; --focus:#4493f8;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0d1117; --card:#151b23; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
+  --add:#3fb950; --add-bg:#12261e; --add-gutter:#1b4721;
+  --del:#f85149; --del-bg:#25171c; --del-gutter:#5d1f24;
+  --hl:#3b2e0a; --tg-bubble:#1f2a36; --tg-chat:#0f1a24; --focus:#4493f8;
+  color-scheme:dark;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:4px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+/* language switch: hide the other language regardless of component display rules */
+html:not([data-l="ru"]) body [lang="ru"],html[data-l="ru"] body [lang="en"]{display:none!important}
+code,pre,.mono{font-family:var(--mono)}
+
+/* nav */
+header.top{border-bottom:1px solid var(--line);background:var(--paper)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:16px}
+.repo{font:600 15px var(--mono);text-decoration:none;display:flex;align-items:center;gap:10px}
+.repo .bell{font-size:20px}
+.top nav{display:flex;align-items:center;gap:22px;font-size:15px}
+.top nav a{text-decoration:none;color:var(--muted)}
+.top nav a:hover{color:var(--ink)}
+.theme{display:grid;place-items:center;width:32px;height:30px;border:1px solid var(--line);border-radius:6px;background:none;color:var(--muted);cursor:pointer}
+.theme:hover{color:var(--ink);border-color:var(--muted)}
+.theme svg{width:16px;height:16px}
+.theme .moon{display:none}
+:root[data-theme="dark"] .theme .sun{display:none}
+:root[data-theme="dark"] .theme .moon{display:block}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .theme .sun{display:none}
+  :root:not([data-theme="light"]) .theme .moon{display:block}
+}
+.lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.lang button{font:500 13px var(--sans);background:none;border:0;color:var(--muted);padding:5px 10px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+/* hero */
+.hero{padding:72px 0 88px}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:56px;align-items:center}
+h1{font:800 clamp(40px,5.6vw,68px)/1.02 var(--display);letter-spacing:-.025em;max-width:13ch}
+.lede{margin-top:24px;font-size:19px;color:var(--muted);max-width:48ch}
+.lede strong{color:var(--ink);font-weight:600}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.btn{display:inline-flex;align-items:center;gap:8px;font:600 16px var(--sans);text-decoration:none;padding:13px 22px;border-radius:8px;border:1px solid var(--line)}
+.btn.primary{background:var(--add);border-color:var(--add);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:var(--card)}
+.btn.ghost:hover{border-color:var(--muted)}
+.fine{margin-top:18px;font-size:14px;color:var(--muted)}
+
+/* the diff */
+.diff{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 1px 0 var(--line)}
+.diff-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font:600 13px var(--mono)}
+.diff-head .stat{font-weight:400}
+.diff-head .stat .a{color:var(--add)} .diff-head .stat .d{color:var(--del)}
+.hunk{font:400 13px var(--mono);color:var(--muted);background:color-mix(in srgb,var(--focus) 8%,var(--card));padding:6px 14px}
+.row{display:grid;grid-template-columns:34px 22px 1fr;font:400 14.5px/1.5 var(--mono)}
+.row .n{color:var(--muted);text-align:right;padding:7px 8px 7px 0;font-size:12px}
+.row .s{padding:7px 0;text-align:center;font-weight:600}
+.row .t{padding:7px 14px 7px 0}
+.row.d{background:var(--del-bg)} .row.d .n{background:var(--del-gutter)} .row.d .s{color:var(--del)}
+.row.a{background:var(--add-bg)} .row.a .n{background:var(--add-gutter)} .row.a .s{color:var(--add)}
+.row.d .t{text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--del) 55%,transparent)}
+.row .chip{display:inline-block;font:500 12px var(--sans);border:1px solid var(--line);background:var(--card);border-radius:5px;padding:0 6px;margin-left:4px;text-decoration:none;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){
+  .row{opacity:0;animation:land .35s ease-out forwards}
+  .row.d{animation-delay:calc(.25s + var(--i)*.18s)}
+  .row.a{animation-delay:calc(1s + var(--i)*.22s)}
+  @keyframes land{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+}
+
+/* sections */
+section{padding:88px 0;border-top:1px solid var(--line)}
+h2{font:800 clamp(30px,3.6vw,44px)/1.08 var(--display);letter-spacing:-.02em;max-width:22ch}
+.intro{margin-top:16px;color:var(--muted);max-width:60ch;font-size:18px}
+
+/* whose move */
+.move{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:56px;align-items:start;margin-top:44px}
+.states{list-style:none;display:grid;gap:22px}
+.states li{display:grid;grid-template-columns:18px 1fr;gap:14px}
+.dot{width:14px;height:14px;border-radius:50%;margin-top:6px;border:2px solid var(--muted)}
+.dot.me{background:var(--del);border-color:var(--del)}
+.dot.them{background:transparent}
+.dot.none{background:var(--add);border-color:var(--add)}
+.states b{display:block;font-weight:600}
+.states span{color:var(--muted)}
+.phone{background:var(--tg-chat);border-radius:14px;padding:22px 18px;border:1px solid var(--line)}
+.bubble{background:var(--tg-bubble);border-radius:12px 12px 12px 4px;padding:12px 14px;font-size:15px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.06)}
+.bubble .who{font-weight:600}
+.bubble .link{color:var(--tg);text-decoration:none;display:block;margin-top:8px}
+.bubble .proj{font:400 13px var(--mono);color:var(--muted)}
+.bubble blockquote{margin-top:10px;border-left:3px solid var(--tg);padding-left:10px;color:var(--muted);font-size:14.5px}
+.bubble .time{display:block;text-align:right;font-size:11px;color:var(--muted);margin-top:6px}
+.keys{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.keys span{background:color-mix(in srgb,var(--tg-bubble) 70%,var(--tg-chat));border-radius:8px;text-align:center;padding:8px 6px;font-size:14px;color:var(--tg);font-weight:500}
+.keys span.wide{grid-column:1/-1}
+
+/* features */
+.groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:48px 56px;margin-top:48px}
+.group h3{font:600 22px/1.2 var(--display);margin-bottom:14px}
+.group ul{list-style:none;display:grid;gap:10px}
+.group li{padding-left:22px;position:relative;color:var(--muted)}
+.group li::before{content:"+";position:absolute;left:0;color:var(--add);font:600 16px var(--mono)}
+.group li strong{color:var(--ink);font-weight:500}
+.group code{font-size:14px;background:var(--hl);padding:1px 5px;border-radius:4px;color:var(--ink)}
+
+/* commands */
+.cmds{margin-top:40px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.cmds table{width:100%;border-collapse:collapse}
+.cmds td{padding:12px 18px;border-top:1px solid var(--line);vertical-align:top}
+.cmds tr:first-child td{border-top:0}
+.cmds td:first-child{font:600 15px var(--mono);white-space:nowrap;width:1%}
+.cmds td:last-child{color:var(--muted)}
+
+/* install */
+.steps{list-style:none;counter-reset:s;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px;margin-top:44px}
+.steps li{counter-increment:s}
+.steps li::before{content:counter(s);display:inline-grid;place-items:center;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);font:600 15px var(--mono);margin-bottom:14px;background:var(--card)}
+.steps b{display:block;font-weight:600;margin-bottom:6px}
+.steps p{color:var(--muted)}
+.steps code{font-size:14px;background:var(--hl);padding:1px 5px;border-radius:4px;color:var(--ink)}
+pre.shell{margin-top:36px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px 22px;overflow-x:auto;font-size:14.5px;line-height:1.75}
+pre.shell .c{color:var(--muted)}
+pre.shell .p{color:var(--add);user-select:none}
+
+/* trust */
+.trust{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 40px;margin-top:40px}
+.trust b{display:block;font-weight:600;margin-bottom:4px}
+.trust span{color:var(--muted)}
+
+/* closing */
+.closing{text-align:left}
+.closing .actions{margin-top:28px}
+footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+@media (max-width:900px){
+  .hero .wrap,.move,.groups,.trust,.steps{grid-template-columns:minmax(0,1fr)}
+  .top nav a.hide-sm{display:none}
+  h1{max-width:none}
+}
+@media (max-width:520px){
+  .row{grid-template-columns:22px minmax(0,1fr);font-size:13.5px}
+  .row .n{display:none}
+  .row .s{padding-left:4px}
+  .cmds td:first-child{white-space:normal}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="repo" href="https://github.com/IsaevDimka/tg-git-notifications-bot"><span class="bell" aria-hidden="true">🔔</span>tg-git-notifications-bot</a>
+    <nav aria-label="Main">
+      <a class="hide-sm" href="#how"><span lang="en">How it works</span><span lang="ru">Как работает</span></a>
+      <a class="hide-sm" href="#install"><span lang="en">Install</span><span lang="ru">Установка</span></a>
+      <a href="https://github.com/IsaevDimka/tg-git-notifications-bot">GitHub</a>
+      <button type="button" class="theme" aria-label="Switch light or dark theme" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+      </button>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-set="en" aria-pressed="true">EN</button>
+        <button type="button" data-set="ru" aria-pressed="false">RU</button>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="hero" style="border-top:0">
+  <div class="wrap">
+    <div>
+      <h1><span lang="en">Stop pinging people about code review.</span><span lang="ru">Хватит пинговать коллег по код-ревью.</span></h1>
+      <p class="lede" lang="en">A self-hosted Telegram bot for <strong>GitLab and GitHub</strong>. It tells each person when a merge request needs <strong>their</strong> move — a review request, a reply to their comment, new commits after their review — and lets them reply, resolve or approve right from the chat.</p>
+      <p class="lede" lang="ru">Self-hosted Telegram-бот для <strong>GitLab и GitHub</strong>. Пишет каждому, когда в MR ход за <strong>ним</strong>: новое ревью, ответ на его комментарий, новые коммиты после его ревью — и даёт ответить, резолвнуть или заапрувить прямо из чата.</p>
+      <div class="actions">
+        <a class="btn primary" href="#install"><span lang="en">Deploy with Docker</span><span lang="ru">Развернуть в Docker</span></a>
+        <a class="btn ghost" href="https://github.com/IsaevDimka/tg-git-notifications-bot"><span lang="en">Source on GitHub</span><span lang="ru">Код на GitHub</span></a>
+      </div>
+      <p class="fine"><span lang="en">Open source under MIT. One container and SQLite; no public URL needed.</span><span lang="ru">Open source, MIT. Один контейнер и SQLite, публичный адрес не нужен.</span></p>
+    </div>
+
+    <figure class="diff" aria-label="Your workday, before and after">
+      <div class="diff-head"><span>your-workday.diff</span><span class="stat"><span class="a">+4</span> <span class="d">−3</span></span></div>
+      <div class="hunk"><span lang="en">@@ every merge request, every day @@</span><span lang="ru">@@ каждый MR, каждый день @@</span></div>
+      <div class="row d" style="--i:0"><span class="n">1</span><span class="s">−</span><span class="t"><span lang="en">“Hey, did you see my MR?” in the team chat</span><span lang="ru">«Ну что, глянешь мой MR?» в общем чате</span></span></div>
+      <div class="row d" style="--i:1"><span class="n">2</span><span class="s">−</span><span class="t"><span lang="en">Refreshing GitLab to check for replies</span><span lang="ru">F5 в GitLab — ответили или нет</span></span></div>
+      <div class="row d" style="--i:2"><span class="n">3</span><span class="s">−</span><span class="t"><span lang="en">A reply to your comment, noticed two days later</span><span lang="ru">Ответ на твой комментарий, замеченный через два дня</span></span></div>
+      <div class="row a" style="--i:0"><span class="n">1</span><span class="s">+</span><span class="t"><span lang="en">🔔 New merge request to review from @alice</span><span lang="ru">🔔 Новый MR на ревью от @alice</span><span class="chip">Approve</span></span></div>
+      <div class="row a" style="--i:1"><span class="n">2</span><span class="s">+</span><span class="t"><span lang="en">↩️ @bob replied to your comment</span><span lang="ru">↩️ @bob ответил на твой комментарий</span><span class="chip">Reply</span><span class="chip">Resolve</span></span></div>
+      <div class="row a" style="--i:2"><span class="n">3</span><span class="s">+</span><span class="t"><span lang="en">🔁 @alice pushed new commits after your review</span><span lang="ru">🔁 @alice запушила коммиты после твоего ревью</span></span></div>
+      <div class="row a" style="--i:3"><span class="n">4</span><span class="s">+</span><span class="t"><span lang="en">⏳ !42 has waited 24 h for reviewers</span><span lang="ru">⏳ !42 ждёт ревьюеров уже 24 ч</span><span class="chip">Ping</span></span></div>
+    </figure>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2><span lang="en">Every merge request has a next move. The bot knows whose.</span><span lang="ru">В каждом MR есть следующий ход. Бот знает, чей.</span></h2>
+    <p class="intro" lang="en">Notifications are only useful when they mean “you’re up”. So the bot tracks, for each merge request, who should act next — and <code>/inbox</code> lists only the ones where it’s you.</p>
+    <p class="intro" lang="ru">Уведомление полезно, только когда оно значит «твоя очередь». Поэтому бот для каждого MR считает, кто должен действовать следующим, а <code>/inbox</code> показывает только те, где это ты.</p>
+    <div class="move">
+      <ul class="states">
+        <li><i class="dot me" aria-hidden="true"></i><div>
+          <b lang="en">Your move</b><b lang="ru">Ход за тобой</b>
+          <span lang="en">You were asked to review, the author answered your thread, or pushed after your review. On your own MR: a reviewer asked something, there’s a conflict, or it’s approved and ready to merge.</span>
+          <span lang="ru">Тебя позвали на ревью, автор ответил в твоём треде или запушил после твоего ревью. В твоём MR: ревьюер что-то спросил, появился конфликт или всё одобрено и пора мёржить.</span>
+        </div></li>
+        <li><i class="dot them" aria-hidden="true"></i><div>
+          <b lang="en">Their move</b><b lang="ru">Ход за другими</b>
+          <span lang="en">You left comments and wait for the author, or your MR waits for reviewers. After 24 hours you get a Ping button.</span>
+          <span lang="ru">Ты оставил комментарии и ждёшь автора, или твой MR ждёт ревьюеров. Через сутки появится кнопка «Пингануть».</span>
+        </div></li>
+        <li><i class="dot none" aria-hidden="true"></i><div>
+          <b lang="en">Nothing needed from you</b><b lang="ru">С тебя ничего</b>
+          <span lang="en">You approved and nothing is open. Drafts stay quiet until they’re ready.</span>
+          <span lang="ru">Ты одобрил, открытых вопросов нет. Черновики молчат, пока их не снимут.</span>
+        </div></li>
+      </ul>
+      <div class="phone" aria-label="Example notification in Telegram">
+        <div class="bubble">
+          <span lang="en">↩️ <span class="who">@bob</span> replied to your comment</span>
+          <span lang="ru">↩️ <span class="who">@bob</span> ответил на твой комментарий</span>
+          <a class="link" href="#how" tabindex="-1">!42 — Cache search results</a>
+          <span class="proj">team/backend</span>
+          <blockquote><span lang="en">Your comment: why a second query here?</span><span lang="ru">Твой комментарий: зачем здесь второй запрос?</span></blockquote>
+          <blockquote><span lang="en">Good catch — merged them into one, see the latest commit.</span><span lang="ru">Верно — объединил в один, смотри последний коммит.</span></blockquote>
+          <span class="time">10:42</span>
+        </div>
+        <div class="keys" aria-hidden="true">
+          <span>💬 <span lang="en">Reply</span><span lang="ru">Ответить</span></span>
+          <span>✔️ Resolve</span>
+          <span>🔗 <span lang="en">Open</span><span lang="ru">Открыть</span></span>
+          <span>⏰ <span lang="en">Later</span><span lang="ru">Позже</span></span>
+          <span class="wide">✓ <span lang="en">Read</span><span lang="ru">Прочитано</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2><span lang="en">What it does</span><span lang="ru">Что умеет</span></h2>
+    <div class="groups">
+      <div class="group">
+        <h3><span lang="en">Doesn’t let a review slip</span><span lang="ru">Не даёт пропустить ревью</span></h3>
+        <ul lang="en">
+          <li><strong>Review requests</strong>, including re-requests and drafts once they’re ready</li>
+          <li><strong>Replies to your comments</strong> and mentions, quoted with context</li>
+          <li><strong>New commits after your review</strong> — it’s your move again, no re-request click needed</li>
+          <li>On your MRs: approvals, change requests, conflicts, merged or closed</li>
+          <li>A daily nudge when an MR has waited on you for two days</li>
+        </ul>
+        <ul lang="ru">
+          <li><strong>Запросы ревью</strong>, в том числе повторные и черновики после снятия draft</li>
+          <li><strong>Ответы на твои комментарии</strong> и упоминания — с цитатой</li>
+          <li><strong>Новые коммиты после твоего ревью</strong> — ход снова твой, даже без re-request</li>
+          <li>По твоим MR: апрувы, запросы изменений, конфликты, влит или закрыт</li>
+          <li>Напоминание, если MR ждёт тебя уже два дня</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><span lang="en">Replaces the manual ping</span><span lang="ru">Пингует вместо тебя</span></h3>
+        <ul lang="en">
+          <li>Your MR waits 24 hours for reviewers — one tap on <strong>Ping</strong></li>
+          <li>Colleagues who use the bot get it <strong>in Telegram</strong>; everyone else as an MR comment</li>
+          <li><code>/invite</code> gives a one-time link that skips admin approval</li>
+        </ul>
+        <ul lang="ru">
+          <li>Твой MR сутки ждёт ревьюеров — одно нажатие на <strong>«Пингануть»</strong></li>
+          <li>Коллеги, у которых есть бот, получают напоминание <strong>в Telegram</strong>, остальные — комментарием в MR</li>
+          <li><code>/invite</code> — одноразовая ссылка, которая пускает без одобрения админа</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><span lang="en">Lets you act from the chat</span><span lang="ru">Действия прямо из чата</span></h3>
+        <ul lang="en">
+          <li><strong>Reply</strong> in the thread, <strong>Resolve</strong>, <strong>Approve</strong> (with a confirmation), <strong>Snooze</strong></li>
+          <li><code>/watch</code> someone else’s MR by link: approvals, merged, closed</li>
+          <li><code>/mr</code> and <code>/my</code> show everything you review and everything you own</li>
+        </ul>
+        <ul lang="ru">
+          <li><strong>Ответить</strong> в тред, <strong>Resolve</strong>, <strong>Approve</strong> (с подтверждением), <strong>Отложить</strong></li>
+          <li><code>/watch</code> — следить за чужим MR по ссылке: апрувы, влит, закрыт</li>
+          <li><code>/mr</code> и <code>/my</code> — всё, что ты ревьюишь, и все твои MR</li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3><span lang="en">Stays quiet when it should</span><span lang="ru">Молчит, когда надо</span></h3>
+        <ul lang="en">
+          <li><strong>Quiet hours and weekends</strong>, with one catch-up message in the morning</li>
+          <li>A daily summary at the time you choose, and an optional evening one</li>
+          <li>Five comments from one person arrive as <strong>one message</strong></li>
+          <li>Bots and drafts are muted by default; <code>/mute</code> a whole project</li>
+          <li>MRs labelled <code>blocker</code> or <code>hotfix</code> still get through at night</li>
+        </ul>
+        <ul lang="ru">
+          <li><strong>Тихие часы и выходные</strong> — и одно сообщение со всем пропущенным утром</li>
+          <li>Ежедневная сводка в удобное время и, по желанию, вечерняя</li>
+          <li>Пять комментариев от одного человека — <strong>одно сообщение</strong></li>
+          <li>Боты и черновики по умолчанию молчат; <code>/mute</code> глушит проект целиком</li>
+          <li>MR с метками <code>blocker</code> или <code>hotfix</code> доходят и ночью</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="cmds">
+      <table>
+        <tr><td>/inbox</td><td><span lang="en">Where it’s your move, with unread counts</span><span lang="ru">Где ход за тобой и сколько непрочитанного</span></td></tr>
+        <tr><td>/mr</td><td><span lang="en">To review (not yet approved by you) and your own</span><span lang="ru">На ревью (ещё не одобренные тобой) и твои</span></td></tr>
+        <tr><td>/watch &lt;link&gt;</td><td><span lang="en">Follow someone else’s MR</span><span lang="ru">Следить за чужим MR</span></td></tr>
+        <tr><td>/mute</td><td><span lang="en">Silence a noisy project</span><span lang="ru">Заглушить шумный проект</span></td></tr>
+        <tr><td>/settings</td><td><span lang="en">Notification types, summaries, quiet hours, language, time zone</span><span lang="ru">Типы уведомлений, сводки, тихие часы, язык, таймзона</span></td></tr>
+        <tr><td>/status</td><td><span lang="en">Is it working: last check, errors, API limit left</span><span lang="ru">Работает ли бот: последний опрос, ошибки, остаток лимита API</span></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2><span lang="en">Running in five minutes, on any machine with Docker</span><span lang="ru">Пять минут на любой машине с Docker</span></h2>
+    <ol class="steps">
+      <li><b lang="en">Create a bot</b><b lang="ru">Создай бота</b>
+        <p lang="en">Talk to <a href="https://t.me/BotFather">@BotFather</a> and copy the token. It’s the only setting you need.</p>
+        <p lang="ru">Напиши <a href="https://t.me/BotFather">@BotFather</a> и скопируй токен — это единственная обязательная настройка.</p></li>
+      <li><b lang="en">Start the container</b><b lang="ru">Запусти контейнер</b>
+        <p lang="en">A VPS, a home server or a Raspberry Pi. It only makes outgoing requests, so it works behind NAT.</p>
+        <p lang="ru">VPS, домашний сервер или Raspberry Pi. Бот делает только исходящие запросы — работает и за NAT.</p></li>
+      <li><b lang="en">Send /start</b><b lang="ru">Отправь /start</b>
+        <p lang="en">The first person becomes admin. Connect GitLab (token with <code>api</code>) or GitHub (classic token with <code>repo</code>).</p>
+        <p lang="ru">Первый, кто напишет, становится админом. Подключи GitLab (токен с <code>api</code>) или GitHub (classic-токен с <code>repo</code>).</p></li>
+    </ol>
+<pre class="shell"><span class="c"># <span lang="en">one command</span><span lang="ru">одной командой</span></span>
+<span class="p">$ </span>docker run -d --name git-notify --restart unless-stopped \
+    -e TELEGRAM_TOKEN=123456:ABC... \
+    -v git-notify-data:/data \
+    ghcr.io/isaevdimka/tg-git-notifications-bot:latest
+
+<span class="c"># <span lang="en">or from a clone</span><span lang="ru">или из клона репозитория</span></span>
+<span class="p">$ </span>cp .env.example .env    <span class="c"># TELEGRAM_TOKEN=…</span>
+<span class="p">$ </span>make up                 <span class="c"># make logs · make update · make backup</span></pre>
+  </div>
+</section>
+
+<section id="trust">
+  <div class="wrap">
+    <h2><span lang="en">Your tokens stay on your server</span><span lang="ru">Токены остаются на твоём сервере</span></h2>
+    <ul class="trust">
+      <li><b lang="en">Self-hosted</b><b lang="ru">Свой сервер</b><span lang="en">No SaaS in the middle. Your code review never leaves your infrastructure.</span><span lang="ru">Никакого SaaS посередине. Данные ревью не покидают твою инфраструктуру.</span></li>
+      <li><b lang="en">Tokens encrypted</b><b lang="ru">Токены зашифрованы</b><span lang="en">Stored with a key that lives only in your data volume. The message with your token is deleted right away.</span><span lang="ru">Хранятся под ключом, который есть только в твоём томе с данными. Сообщение с токеном удаляется сразу.</span></li>
+      <li><b lang="en">No open ports</b><b lang="ru">Без открытых портов</b><span lang="en">Long polling to Telegram and your Git host. Nothing listens for incoming connections.</span><span lang="ru">Long polling к Telegram и Git-хостингу. Ничего не слушает входящие соединения.</span></li>
+      <li><b lang="en">Invite-only</b><b lang="ru">Только по приглашению</b><span lang="en">The first user is the admin. Everyone else needs approval or an invite link.</span><span lang="ru">Первый пользователь — админ. Остальным нужно одобрение или ссылка-приглашение.</span></li>
+      <li><b lang="en">Private by default</b><b lang="ru">Приватно по умолчанию</b><span lang="en">Commands that show merge requests answer only in private chats.</span><span lang="ru">Команды со списками MR отвечают только в личке.</span></li>
+      <li><b lang="en">MIT licensed</b><b lang="ru">Лицензия MIT</b><span lang="en">Read the code, fork it, add your Git host. Russian and English interface.</span><span lang="ru">Читай код, форкай, добавляй свой Git-хостинг. Интерфейс на русском и английском.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <h2><span lang="en">Let the bot do the nagging.</span><span lang="ru">Пусть напоминает бот.</span></h2>
+    <div class="actions">
+      <a class="btn primary" href="#install"><span lang="en">Deploy with Docker</span><span lang="ru">Развернуть в Docker</span></a>
+      <a class="btn ghost" href="https://github.com/IsaevDimka/tg-git-notifications-bot"><span lang="en">⭐ Star on GitHub</span><span lang="ru">⭐ Поставить звезду на GitHub</span></a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span lang="en">Open source under the MIT license.</span><span lang="ru">Open source, лицензия MIT.</span>
+    <a href="https://github.com/IsaevDimka/tg-git-notifications-bot">github.com/IsaevDimka/tg-git-notifications-bot</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement, buttons = document.querySelectorAll('.lang button');
+  function set(lang) {
+    root.dataset.l = lang; root.lang = lang;
+    buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.set === lang)); });
+    try { localStorage.setItem('lang', lang); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem('lang'); } catch (e) {}
+  var param = new URLSearchParams(location.search).get('lang');
+  set(param || saved || ((navigator.language || '').toLowerCase().indexOf('ru') === 0 ? 'ru' : 'en'));
+  buttons.forEach(function (b) { b.addEventListener('click', function () { set(b.dataset.set); }); });
+
+  var toggle = document.querySelector('.theme');
+  var systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  function current() { return root.dataset.theme || (systemDark.matches ? 'dark' : 'light'); }
+  function label() { toggle.setAttribute('aria-pressed', String(current() === 'dark')); }
+  toggle.addEventListener('click', function () {
+    var next = current() === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch (e) {}
+    label();
+  });
+  label();
+})();
+</script>
+</body>
+</html>
