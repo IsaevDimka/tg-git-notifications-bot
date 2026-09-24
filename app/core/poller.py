@@ -5,6 +5,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+import httpx
+
 from app.core.ball import whose_ball
 from app.core.diff import diff, rereview_state, snapshot
 from app.models import Ball, Details, Event, Kind, Note, ReviewItem, Role
@@ -203,10 +205,11 @@ async def poll_account(provider: Provider, store: Store, account: Account, now: 
 
 
 async def _mark_auth(store: Store, account: Account, now: datetime) -> None:
-    """Record a dead token; tell the user once per breakage, not on every tick."""
-    if account.last_error != "auth":
-        notice = Event(Kind.TOKEN_BROKEN, dedup=f"auth:{account.id}:{iso(now)}", title=account.host)
-        await store.add_event(account.tg_id, account.id, notice, now)
+    """Record a dead token; tell the user once per breakage (keyed by the last good poll), not every tick —
+    also for tokens that were already dead before this notice existed."""
+    breakage = account.last_ok_at or "never"
+    notice = Event(Kind.TOKEN_BROKEN, dedup=f"auth:{account.id}:{breakage}", title=account.host)
+    await store.add_event(account.tg_id, account.id, notice, now)
     await store.update_account(account.id, last_poll_at=iso(now), last_error="auth")
 
 
@@ -215,6 +218,10 @@ async def poll_one(store: Store, provider: Provider, account: Account, now: date
         res = await poll_account(provider, store, account, now)
     except AuthError:
         await _mark_auth(store, account, now)
+        return
+    except httpx.HTTPError as e:  # network hiccup: one line, retried next tick
+        log.warning("poll failed for account %s: %s: %s", account.id, type(e).__name__, e)
+        await store.update_account(account.id, last_poll_at=iso(now), last_error=f"{type(e).__name__}: {e}"[:200])
         return
     except Exception as e:  # noqa: BLE001 — one account must never stop the loop
         log.exception("poll failed for account %s", account.id)

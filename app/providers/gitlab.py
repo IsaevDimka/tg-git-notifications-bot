@@ -202,7 +202,11 @@ class GitLab:
         await self._req("PUT", f"{self._mr_path(item)}/discussions/{thread_id}", params={"resolved": "true"})
 
     async def approve(self, item: ReviewItem) -> None:
-        await self._req("POST", f"{self._mr_path(item)}/approve")
+        try:
+            await self._req("POST", f"{self._mr_path(item)}/approve")
+        except AuthError:
+            await self.whoami()  # raises AuthError if the token itself is dead
+            # the token works: GitLab answers 401 when you have already approved — nothing to do
 
     async def comment(self, item: ReviewItem, body: str) -> None:
         await self._req("POST", f"{self._mr_path(item)}/notes", json={"body": body})

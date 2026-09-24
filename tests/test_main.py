@@ -100,3 +100,30 @@ def test_edited_messages_do_not_reach_the_text_handler():
     [text_handler] = [h for h in _handlers(app) if isinstance(h, MessageHandler)]
     assert text_handler.filters.check_update(_update("private", text="hello"))
     assert not text_handler.filters.check_update(_update("private", edited=True, text="hello"))
+
+
+def test_edited_commands_are_not_run_again():
+    app = build_app(make_cfg(telegram_token="123456:TEST"))
+    for h in _handlers(app):
+        if isinstance(h, CommandHandler):
+            assert not h.filters.check_update(_update("private", edited=True, text="/mute")), h.commands
+
+
+def test_rejected_telegram_token_is_a_clear_exit(monkeypatch, tmp_path):
+    import pytest
+    from telegram.error import InvalidToken
+
+    import app.main as main_mod
+
+    fake_token = "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi"
+
+    class RejectingApp:
+        def run_polling(self, **kw):
+            raise InvalidToken(f"The token `{fake_token}` was rejected by the server.")
+
+    monkeypatch.setattr(main_mod, "build_app", lambda cfg: RejectingApp())
+    monkeypatch.setenv("TELEGRAM_TOKEN", fake_token)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    with pytest.raises(SystemExit) as exc:
+        main_mod.main()
+    assert "rejected" in str(exc.value) and "ABCDEFGH" not in str(exc.value)

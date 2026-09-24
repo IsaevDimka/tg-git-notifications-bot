@@ -23,7 +23,7 @@ query($owner: String!, $name: String!, $number: Int!) {
       reviewRequests(first: 50) { nodes { requestedReviewer { ... on User { login } } } }
       latestOpinionatedReviews(first: 50) { nodes { state author { login } } }
       reviews(last: 50) { nodes { databaseId body createdAt url author { login } } }
-      reviewThreads(first: 100) {
+      reviewThreads(last: 100) {
         nodes { id isResolved comments(first: 100) { nodes { databaseId body createdAt url author { login } } } }
       }
       comments(last: 100) { nodes { databaseId body createdAt url author { login } } }
@@ -119,9 +119,18 @@ class GitHub:
             labels=tuple(label["name"] for label in pr.get("labels") or () if label.get("name")),
         )
 
-    async def _search(self, query: str) -> list[dict]:
-        r = await self._req("GET", "/search/issues", params={"q": query, "per_page": 100})
-        return r.json().get("items", [])
+    async def _search(self, query: str, max_pages: int = 3) -> list[dict]:
+        """Newest first, up to 300 results — a stable order, so busy reviewers don't lose items."""
+        items: list[dict] = []
+        for page in range(1, max_pages + 1):
+            r = await self._req(
+                "GET", "/search/issues", params={"q": query, "per_page": 100, "page": page, "sort": "updated"}
+            )
+            batch = r.json().get("items", [])
+            items += batch
+            if len(batch) < 100:
+                break
+        return items
 
     async def list_items(self, me: str) -> list[ReviewItem]:
         base = "is:pr is:open archived:false"

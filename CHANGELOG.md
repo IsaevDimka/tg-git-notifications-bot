@@ -4,6 +4,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+### Fixed
+- Schema migrations run in a transaction: a crash mid-way no longer breaks every restart with "duplicate column".
+- "Token stopped working" is no longer counted as an unread mention, and tokens that died before this notice existed are reported too.
+- Editing a sent command (e.g. `/mute`, `/invite`) no longer runs it again.
+- `/mute` and `/watch` buttons use a stable key, so an older message can't toggle the wrong row.
+- Morning/evening summaries go out at the chosen time even inside quiet hours (quiet weekends still apply).
+- Approving an MR you already approved on GitLab no longer says the token stopped working.
+- Network errors while polling are logged as one line; a rejected Telegram token exits with a clear message without printing it.
+- GitHub: search is paginated (newest first, up to 300) and the newest review threads are fetched on very busy PRs.
+
 ### Added
 - `make install` (first run: asks for the bot token, writes `.env` 0600, pulls and starts) and `make status`.
 - Requirements and everyday `make` commands in both READMEs and on the website.

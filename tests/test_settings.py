@@ -183,8 +183,12 @@ async def test_mute_lists_projects_and_toggles(store):
     ctx = make_ctx(store)
     upd = message_update("/mute", lang="en")
     await settings.cmd_mute(upd, ctx)
-    assert callbacks(upd.effective_chat.send_message.await_args.kwargs["reply_markup"]) == ["st:mp:0", "st:mp:1"]
-    await settings.cb_settings(callback_update("st:mp:1", lang="en"), ctx)
+    lib = settings.project_ref("g/lib")
+    assert callbacks(upd.effective_chat.send_message.await_args.kwargs["reply_markup"]) == [
+        f"st:mp:{settings.project_ref('g/app')}", f"st:mp:{lib}"]
+    it = replace(item(Role.REVIEWER, 3), project="a/first")  # the list changes before the old button is tapped
+    await store.put_watched(Watched(acc.id, it.key, Role.REVIEWER, it, it.updated_at, {}, Ball.ME, NOW))
+    await settings.cb_settings(callback_update(f"st:mp:{lib}", lang="en"), ctx)
     assert (await store.get_user(1)).muted_projects == frozenset({"g/lib"})
     ctx.args = ["g/lib"]
     await settings.cmd_mute(message_update("/mute g/lib", lang="en"), ctx)

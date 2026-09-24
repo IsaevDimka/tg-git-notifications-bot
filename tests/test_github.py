@@ -234,3 +234,29 @@ async def test_remembers_rate_limit_remaining(gh):
                                                               headers={"x-ratelimit-remaining": "4990"}))
     await gh.whoami()
     assert gh.rate_remaining == 4990
+
+
+@respx.mock
+async def test_search_follows_pages_sorted_by_update(gh):
+    seen = []
+
+    def respond(request):
+        q, page = request.url.params["q"], int(request.url.params.get("page", "1"))
+        seen.append((request.url.params.get("sort"), page))
+        if "review-requested:me" in q:
+            n = 100 if page == 1 else 3
+            return httpx.Response(200, json={"items": [search_pr((page - 1) * 100 + i + 1) for i in range(n)]})
+        return httpx.Response(200, json={"items": []})
+
+    respx.get(f"{API}/search/issues").mock(side_effect=respond)
+    items = await gh.list_items("me")
+    assert len(items) == 103
+    assert all(sort == "updated" for sort, _ in seen)
+
+
+@respx.mock
+async def test_details_asks_for_the_newest_threads(gh):
+    route = respx.post(f"{API}/graphql").mock(return_value=httpx.Response(200, json={"errors": [{"message": "x"}]}))
+    with pytest.raises(ProviderError):
+        await gh.details(gh_item())
+    assert "reviewThreads(last: 100)" in json.loads(route.calls.last.request.content)["query"]

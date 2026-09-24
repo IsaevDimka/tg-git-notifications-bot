@@ -449,3 +449,26 @@ async def test_no_rereview_if_i_already_commented_after_the_push(store):
                                        cr=["me"], head_sha="b")
     await poll_account(p, store, acc, NOW + timedelta(hours=1))
     assert Kind.REREVIEW not in [e.kind for e in await events(store)]
+
+
+async def test_token_dead_before_upgrade_is_still_reported_once(store):
+    acc = await make_account(store, synced=True)
+    await store.update_account(acc.id, last_error="auth")  # marked by an older version, never notified
+    p = FakeProvider()
+    p.list_error = AuthError("401", status=401)
+    await poll_one(store, p, await store.get_account(acc.id), NOW)
+    await poll_one(store, p, await store.get_account(acc.id), NOW + timedelta(minutes=3))
+    assert [e.kind for e in await events(store)] == [Kind.TOKEN_BROKEN]
+
+
+async def test_network_errors_are_logged_without_traceback(store, caplog):
+    import httpx
+
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    p.list_error = httpx.ConnectTimeout("timed out")
+    with caplog.at_level("WARNING"):
+        await poll_one(store, p, acc, NOW)
+    [record] = [r for r in caplog.records if "account" in r.getMessage()]
+    assert record.levelname == "WARNING" and record.exc_info is None
+    assert (await store.get_account(acc.id)).last_error == "ConnectTimeout: timed out"

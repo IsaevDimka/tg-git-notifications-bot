@@ -5,6 +5,7 @@ import logging
 
 import httpx
 from telegram import Update
+from telegram.error import InvalidToken
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -129,7 +130,10 @@ def build_app(cfg: Config) -> Application:
     app.bot_data["cfg"] = cfg
     for name, handler in COMMAND_HANDLERS:
         # /start explains itself in groups; everything else shows private MR data → private chats only
-        only = None if name == "start" else filters.ChatType.PRIVATE
+        # edited messages never re-run a command (an edited /mute would toggle back)
+        only = filters.UpdateType.MESSAGE
+        if name != "start":
+            only = only & filters.ChatType.PRIVATE
         app.add_handler(CommandHandler(name, handler, filters=only))
     for pattern, handler in CALLBACKS:
         app.add_handler(CallbackQueryHandler(handler, pattern=pattern))
@@ -146,4 +150,7 @@ def main() -> None:
     cfg = load_config()
     setup_logging(cfg.log_level)
     ensure_writable(cfg.data_dir)
-    build_app(cfg).run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        build_app(cfg).run_polling(allowed_updates=Update.ALL_TYPES)
+    except InvalidToken:  # PTB's message would print the token itself
+        raise SystemExit("TELEGRAM_TOKEN was rejected by Telegram — check it with @BotFather") from None
