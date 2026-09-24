@@ -1,7 +1,9 @@
 """Compare the stored snapshot of a merge request with fresh Details and emit Events."""
 
+from datetime import datetime
+
 from app.models import Details, Event, Kind, ReviewItem, Role, mentions_user
-from app.timeutil import iso
+from app.timeutil import iso, parse_ts
 
 
 def snapshot(d: Details) -> dict:
@@ -15,6 +17,7 @@ def snapshot(d: Details) -> dict:
         "open_threads": sum(1 for t in d.threads if t.resolvable and not t.resolved),
         "pipeline": d.pipeline,
         "approvals_left": d.approvals_left,
+        "head_sha": d.head_sha,
     }
 
 
@@ -103,3 +106,23 @@ def _author_events(old: dict, d: Details, item: ReviewItem, me: str) -> list[Eve
     if d.has_conflicts and not old.get("has_conflicts", False):
         out.append(Event(Kind.CONFLICT, dedup=f"conf:{item.key}:{item.updated_at.isoformat()}", item=item))
     return out
+
+
+def rereview_state(old: dict, d: Details, item: ReviewItem, me: str, now: datetime) -> tuple[list[Event], str | None]:
+    """New commits after I reviewed (changes requested or commented, not approved) → my move again.
+
+    Returns (events, rereview_since) — rereview_since stays set until I comment again or approve.
+    A rebase also changes the head commit and triggers this; accepted as a cheap false positive.
+    """
+    if item.role is not Role.REVIEWER or me in d.approved_by:
+        return [], None
+    my_notes = [n for t in d.threads for n in t.notes if n.author == me]
+    since = old.get("rereview_since")
+    if since and any(n.created_at > parse_ts(since) for n in my_notes):
+        since = None
+    old_sha = old.get("head_sha")
+    reviewed = me in d.changes_requested_by or bool(my_notes)
+    if reviewed and old_sha and d.head_sha and d.head_sha != old_sha:
+        event = Event(Kind.REREVIEW, dedup=f"rerev:{item.key}:{d.head_sha}", item=item, actor=item.author)
+        return [event], iso(now)
+    return [], since

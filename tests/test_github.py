@@ -98,6 +98,7 @@ async def test_details_from_graphql(gh):
     pr = {
         "state": "OPEN",
         "mergeable": "CONFLICTING",
+        "headRefOid": "def456",
         "reviewRequests": {"nodes": [{"requestedReviewer": {"login": "erin"}}, {"requestedReviewer": {}}]},
         "latestOpinionatedReviews": {"nodes": [
             {"state": "APPROVED", "author": {"login": "bob"}},
@@ -127,6 +128,7 @@ async def test_details_from_graphql(gh):
     assert d.approved_by == frozenset({"bob"}) and d.changes_requested_by == frozenset({"dave"})
     assert d.pending_reviewers == ("erin",)
     assert d.has_conflicts and d.pipeline == "failed" and d.approvals_left is None and d.state == "opened"
+    assert d.head_sha == "def456"
 
 
 @respx.mock

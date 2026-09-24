@@ -33,6 +33,7 @@ class Kind(StrEnum):
     CONFLICT = "conflict"
     WAITING_ON_REVIEWER = "waiting_on_reviewer"
     TOKEN_BROKEN = "token_broken"
+    REREVIEW = "rereview"
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,7 @@ class Details:
     has_conflicts: bool
     approvals_left: int | None  # None = unknown (GitHub)
     pipeline: str | None  # success | failed | running | None
+    head_sha: str | None = None  # last commit; a change after my review means "look again"
 
 
 @dataclass(frozen=True)

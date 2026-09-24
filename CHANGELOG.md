@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 ## [Unreleased]
 
 ### Added (v0.2 quick wins)
+- "🔁 New commits after your review": when the author pushes after you requested changes or commented, it's your move again — no re-request click needed. (A rebase triggers it too.)
 - One-time "token stopped working" notice when an account's token is rejected.
 
 ### Fixed (v0.2 quick wins)

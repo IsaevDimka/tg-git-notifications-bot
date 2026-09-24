@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.core.ball import whose_ball
-from app.core.diff import diff, snapshot
+from app.core.diff import diff, rereview_state, snapshot
 from app.models import Ball, Details, Event, Kind, Note, ReviewItem, Role
 from app.providers.base import AuthError, Provider, ProviderError
 from app.storage.store import Account, Store, Watched
@@ -79,11 +79,20 @@ async def _poll_item(
         since = item.updated_at
         if account.synced and item.role is Role.REVIEWER and not _already_reviewed(d, me):
             events.append(Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}", item=item, actor=item.author))
+        rereview_since = None
     else:
+        rerev_events, rereview_since = rereview_state(old.snapshot, d, item, me, now)
+        if rereview_since:
+            ball = Ball.ME
         since = old.ball_since if ball == old.ball else item.updated_at
         if account.synced:
-            events += diff(old.snapshot, d, item, me)
-    snap = {**snapshot(d), "refreshed_at": iso(now), "approved_by_me": me in d.approved_by}
+            events += diff(old.snapshot, d, item, me) + rerev_events
+    snap = {
+        **snapshot(d),
+        "refreshed_at": iso(now),
+        "approved_by_me": me in d.approved_by,
+        "rereview_since": rereview_since,
+    }
     w = Watched(account.id, item.key, item.role, item, item.updated_at, snap, ball, since)
     return events + _escalation(w, now, account.synced), w
 

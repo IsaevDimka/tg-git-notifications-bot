@@ -159,6 +159,7 @@ class GitLab:
             has_conflicts=bool(mr.get("has_conflicts")),
             approvals_left=approvals.get("approvals_left"),
             pipeline=_PIPELINE.get(((mr.get("head_pipeline") or {}).get("status")) or ""),
+            head_sha=mr.get("sha"),
         )
 
     async def mentions(self, me: str, since: datetime | None) -> list[Mention]:

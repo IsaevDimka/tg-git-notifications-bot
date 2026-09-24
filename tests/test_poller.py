@@ -2,7 +2,7 @@ from dataclasses import replace
 from datetime import timedelta
 
 from app.core.poller import poll_account, poll_due, poll_one
-from app.models import Kind, Mention, Role
+from app.models import Ball, Kind, Mention, Role
 from app.providers.base import AuthError, ProviderError
 from app.timeutil import iso
 from tests.factories import NOW, details, item, note, thread
@@ -300,3 +300,18 @@ async def test_undecryptable_token_is_reported(store):
 
     await poll_due(store, broken, NOW)
     assert [e.kind for e in await events(store)] == [Kind.TOKEN_BROKEN]
+
+
+async def test_new_commits_after_my_review_make_it_my_move(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1)
+    p.items = [mr]
+    p.details_by_key[mr.key] = details(thread("t", note(1, "me", "please fix")), cr=["me"], head_sha="aaa")
+    await poll_account(p, store, acc, NOW)
+    assert (await store.get_watched(acc.id, mr.key)).ball is Ball.THEM
+    p.items = [replace(mr, updated_at=mr.updated_at + timedelta(hours=1))]
+    p.details_by_key[mr.key] = details(thread("t", note(1, "me", "please fix")), cr=["me"], head_sha="bbb")
+    await poll_account(p, store, acc, NOW + timedelta(hours=1))
+    assert (await store.get_watched(acc.id, mr.key)).ball is Ball.ME
+    assert [e.kind for e in await events(store)] == [Kind.REREVIEW]

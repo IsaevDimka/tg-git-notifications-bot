@@ -53,6 +53,7 @@ def details(
     approvals_left: int | None = None,
     state: str = "opened",
     pipeline: str | None = None,
+    head_sha: str | None = None,
 ) -> Details:
     return Details(
         state=state,
@@ -63,4 +64,5 @@ def details(
         has_conflicts=conflicts,
         approvals_left=approvals_left,
         pipeline=pipeline,
+        head_sha=head_sha,
     )

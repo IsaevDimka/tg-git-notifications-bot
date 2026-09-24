@@ -105,7 +105,7 @@ async def test_list_items_merges_roles_and_follows_pages(gl):
 
 @respx.mock
 async def test_details_maps_threads_approvals_and_pipeline(gl):
-    respx.get(MR).mock(return_value=httpx.Response(200, json=mr_json(1, has_conflicts=True,
+    respx.get(MR).mock(return_value=httpx.Response(200, json=mr_json(1, has_conflicts=True, sha="abc123",
                                                                      head_pipeline={"status": "failed"})))
     respx.get(f"{MR}/discussions").mock(return_value=httpx.Response(200, json=[
         {"id": "d1", "notes": [gl_note(10, "me", "why?"), gl_note(11, "alice", "because")]},
@@ -133,6 +133,7 @@ async def test_details_maps_threads_approvals_and_pipeline(gl):
     assert d.changes_requested_by == frozenset({"dave"})
     assert d.pending_reviewers == ("erin",)
     assert d.has_conflicts and d.approvals_left == 1 and d.pipeline == "failed"
+    assert d.head_sha == "abc123"
 
 
 @respx.mock

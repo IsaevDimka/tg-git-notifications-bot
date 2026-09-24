@@ -19,6 +19,7 @@ query($owner: String!, $name: String!, $number: Int!) {
     pullRequest(number: $number) {
       state
       mergeable
+      headRefOid
       reviewRequests(first: 50) { nodes { requestedReviewer { ... on User { login } } } }
       latestOpinionatedReviews(first: 50) { nodes { state author { login } } }
       reviews(last: 50) { nodes { databaseId body createdAt url author { login } } }
@@ -165,6 +166,7 @@ class GitHub:
             has_conflicts=pr.get("mergeable") == "CONFLICTING",
             approvals_left=None,
             pipeline=_ROLLUP.get(rollup or ""),
+            head_sha=pr.get("headRefOid"),
         )
 
     async def mentions(self, me: str, since: datetime | None) -> list[Mention]:

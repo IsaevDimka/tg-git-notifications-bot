@@ -4,7 +4,7 @@ A self-hosted Telegram bot that makes sure you never miss a code review on **Git
 It messages you when it's *your move* — so nobody has to ping you by hand.
 
 - 🔔 You were asked to review a merge request
-- ↩️ Someone replied to your comment · ✔️ your thread was resolved or reopened
+- 🔁 The author pushed new commits after your review · ↩️ someone replied to your comment · ✔️ your thread was resolved or reopened
 - 💬 New comments on merge requests you review or own · 📣 @mentions
 - ✅ Approvals, 🔄 change requests, ⚠️ conflicts, 🎉 merged / closed on your own merge requests
 - ⏳ Your merge request has waited 24 h+ for reviewers → one tap posts a friendly reminder
