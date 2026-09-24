@@ -9,6 +9,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ### Fixed (v0.2 quick wins)
 - The poll loop no longer dies if the heartbeat file can't be written.
+- `/mr`, `/inbox`, `/my`, `/settings`, `/accounts`, `/lang`, `/help` answer only in private chats (they show private MR titles).
+- Editing a sent message no longer crashes the text handler or eats a pending prompt.
 
 ### Added
 - `/start` onboarding: GitLab.com, self-hosted GitLab or GitHub; token message deleted at once, token stored

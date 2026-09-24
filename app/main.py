@@ -122,10 +122,16 @@ def build_app(cfg: Config) -> Application:
     )
     app.bot_data["cfg"] = cfg
     for name, handler in COMMAND_HANDLERS:
-        app.add_handler(CommandHandler(name, handler))
+        # /start explains itself in groups; everything else shows private MR data → private chats only
+        only = None if name == "start" else filters.ChatType.PRIVATE
+        app.add_handler(CommandHandler(name, handler, filters=only))
     for pattern, handler in CALLBACKS:
         app.add_handler(CallbackQueryHandler(handler, pattern=pattern))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, inputs.on_text))
+    app.add_handler(
+        MessageHandler(
+            filters.UpdateType.MESSAGE & filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, inputs.on_text
+        )
+    )
     app.add_error_handler(_on_error)
     return app
 

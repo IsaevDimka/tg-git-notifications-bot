@@ -36,8 +36,10 @@ async def delete_quietly(message) -> bool:
 
 
 async def on_text(update, ctx) -> None:
-    pending = ctx.user_data.pop("await", None)
     message = update.message
+    if message is None:  # edited messages etc. — never consume a pending prompt for them
+        return
+    pending = ctx.user_data.pop("await", None)
     text = message.text or ""
     if (pending is None or pending["kind"] != "token") and looks_like_token(text):
         await delete_quietly(message)
