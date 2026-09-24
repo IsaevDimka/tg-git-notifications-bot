@@ -394,3 +394,24 @@ class Store:
             (tg_id,),
         )
         return row[0]
+
+    # ---- /watch links ------------------------------------------------------------------------
+
+    async def add_watch_ref(self, account_id: int, project: str, iid: int, now: datetime) -> bool:
+        cur = await self._write(
+            "INSERT INTO watch_refs (account_id, project, iid, created_at) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (account_id, project, iid) DO NOTHING",
+            (account_id, project, iid, iso(now)),
+        )
+        return cur.rowcount == 1
+
+    async def watch_refs(self, account_id: int) -> list[tuple[str, int]]:
+        rows = await self._all(
+            "SELECT project, iid FROM watch_refs WHERE account_id = ? ORDER BY project, iid", (account_id,)
+        )
+        return [(r["project"], r["iid"]) for r in rows]
+
+    async def delete_watch_ref(self, account_id: int, project: str, iid: int) -> None:
+        await self._write(
+            "DELETE FROM watch_refs WHERE account_id = ? AND project = ? AND iid = ?", (account_id, project, iid)
+        )

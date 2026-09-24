@@ -226,3 +226,11 @@ async def test_redirect_on_write_is_an_error(gl):
     respx.post(f"{MR}/approve").mock(return_value=httpx.Response(302, headers={"location": "https://x/login"}))
     with pytest.raises(ProviderError):
         await gl.approve(item(Role.REVIEWER, 1))
+
+
+@respx.mock
+async def test_get_by_ref_uses_encoded_project_path(gl):
+    route = respx.get(f"{BASE}/projects/g%2Fsub%2Fapp/merge_requests/42").mock(
+        return_value=httpx.Response(200, json=mr_json(42, author="bob")))
+    it = await gl.get_by_ref("g/sub/app", 42, Role.WATCHER)
+    assert route.called and it.role is Role.WATCHER and it.iid == 42 and it.key == f"{HOST}:7:42"

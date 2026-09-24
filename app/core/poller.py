@@ -146,9 +146,26 @@ async def _mentions(provider: Provider, account: Account, now: datetime) -> tupl
 
 
 async def poll_account(provider: Provider, store: Store, account: Account, now: datetime) -> PollResult:
-    items = await provider.list_items(account.username)
+    items = list(await provider.list_items(account.username))
     listed = {i.key for i in items}
     emitted = 0
+    for project, iid in await store.watch_refs(account.id):  # /watch links
+        try:
+            followed = await provider.get_by_ref(project, iid, Role.WATCHER)
+        except AuthError:
+            raise
+        except ProviderError as e:
+            log.warning("watched %s!%s unavailable: %s", project, iid, e)
+            continue
+        if followed.key in listed:  # already mine or on my review — that role wins
+            continue
+        if followed.state != "opened":
+            kind = Kind.MERGED if followed.state == "merged" else Kind.CLOSED
+            emitted += await _emit(store, account, [Event(kind, dedup=f"{followed.state}:{followed.key}", item=followed)], now)
+            await store.delete_watch_ref(account.id, project, iid)
+            continue
+        items.append(followed)
+        listed.add(followed.key)
     reminders: list[Event] = []
     for item in items:
         try:

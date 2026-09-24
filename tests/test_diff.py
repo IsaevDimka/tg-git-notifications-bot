@@ -132,3 +132,9 @@ def test_rereview_clears_when_i_comment_again_or_approve():
     assert rereview_state(pending, approved, item(Role.REVIEWER), ME, NOW) == ([], None)
     still = details(cr=[ME], head_sha="bbb")
     assert rereview_state(pending, still, item(Role.REVIEWER), ME, NOW) == ([], iso(NOW))
+
+
+def test_watcher_gets_approvals_but_not_comments():
+    old = snapshot(details())
+    d = details(thread("t1", note(1, "bob", "nit")), approved=["carol"])
+    assert [e.kind for e in diff(old, d, item(Role.WATCHER), ME)] == [Kind.APPROVED]

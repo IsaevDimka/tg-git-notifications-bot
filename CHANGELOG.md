@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 ## [Unreleased]
 
 ### Added (v0.2 quick wins)
+- `/watch <MR link>` — follow someone else's merge request (approvals, merged, closed; no comment noise); `/watch` lists and unfollows.
 - MRs labelled `blocker` / `hotfix` (configurable: `URGENT_LABELS`) notify even during quiet hours.
 - Noise filters: bot accounts (renovate, dependabot, `*[bot]`, GitLab project/group bots) and drafts you review are quiet by default (toggles in `/settings`); `/mute` silences whole projects in notifications, lists and the daily summary.
 - 3+ comments from one person on one MR in one go (e.g. a submitted review) arrive as one message with the first quotes and a single "✓ Read".

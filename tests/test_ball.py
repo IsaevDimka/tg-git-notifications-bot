@@ -91,3 +91,7 @@ def test_author_after_rerequest_waits_for_reviewer():
 def test_reviewer_rerequested_is_my_move_even_after_taking_part():
     d = details(thread("t1", note(1, "alice"), note(2, ME)), cr=[ME], pending=[ME])
     assert whose_ball(item(Role.REVIEWER), d, ME) is Ball.ME
+
+
+def test_watcher_never_holds_the_ball():
+    assert whose_ball(item(Role.WATCHER), details(), ME) is Ball.NONE

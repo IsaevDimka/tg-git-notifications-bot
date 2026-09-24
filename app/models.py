@@ -11,6 +11,7 @@ from app.timeutil import iso, parse_ts
 class Role(StrEnum):
     REVIEWER = "reviewer"
     AUTHOR = "author"
+    WATCHER = "watcher"  # followed by link via /watch — someone else's MR
 
 
 class Ball(StrEnum):

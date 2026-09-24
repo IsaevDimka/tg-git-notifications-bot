@@ -70,4 +70,13 @@ MIGRATIONS: list[str] = [
     ALTER TABLE users ADD COLUMN mute_drafts INTEGER NOT NULL DEFAULT 1;
     ALTER TABLE users ADD COLUMN muted_projects TEXT NOT NULL DEFAULT '[]';
     """,
+    """
+    CREATE TABLE watch_refs (
+        account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project TEXT NOT NULL,
+        iid INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (account_id, project, iid)
+    );
+    """,
 ]

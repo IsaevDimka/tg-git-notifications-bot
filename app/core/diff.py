@@ -39,6 +39,8 @@ def _rerequest(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event]:
 
 
 def _notes(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event]:
+    if item.role is Role.WATCHER:  # watching by link: merge/approvals only, no comment noise
+        return []
     seen = set(old.get("notes", ()))
     out: list[Event] = []
     for th in d.threads:
@@ -85,7 +87,7 @@ def _resolutions(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event
 
 
 def _author_events(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event]:
-    if item.role is not Role.AUTHOR:
+    if item.role not in (Role.AUTHOR, Role.WATCHER):
         return []
     out: list[Event] = []
     approved = sorted(d.approved_by - set(old.get("approved_by", ())) - {me})
@@ -93,6 +95,8 @@ def _author_events(old: dict, d: Details, item: ReviewItem, me: str) -> list[Eve
         out.append(
             Event(Kind.APPROVED, dedup=f"appr:{item.key}:{','.join(approved)}", item=item, actors=tuple(approved))
         )
+    if item.role is Role.WATCHER:
+        return out
     asked = sorted(d.changes_requested_by - set(old.get("changes_requested_by", ())) - {me})
     if asked:
         out.append(

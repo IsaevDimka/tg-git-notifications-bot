@@ -44,6 +44,7 @@ help.text: |-
   /mr — все твои MR: на ревью и свои
   /my — только твои MR (автор или assignee)
   /mute — заглушить шумный проект
+  /watch — следить за чужим MR по ссылке
   /accounts — подключённые GitLab и GitHub
   /settings — уведомления, ежедневная сводка, тихие часы, язык, таймзона
   /lang — сменить язык (RU / EN)
@@ -187,3 +188,10 @@ mute.header: "🔕 <b>Проекты</b>\nНажми, чтобы заглуши�
 mute.empty: "Пока нет проектов — они появятся после первого опроса."
 mute.done: "🔕 {project} — заглушён."
 mute.undone: "🔔 {project} — снова уведомляю."
+cmd.watch: "Следить за чужим MR"
+watch.usage: "Пришли ссылку: <code>/watch https://gitlab.company.com/group/app/-/merge_requests/42</code> или ссылку на GitHub PR."
+watch.no_account: "Сначала подключи аккаунт для {host} — /start."
+watch.failed: "Не смог открыть этот MR — проверь ссылку и доступ токена к проекту."
+watch.added: "👁 Слежу за {ref} — {title}. Сообщу про апрувы и когда его вольют или закроют."
+watch.header: "👁 <b>Слежу за MR</b> (нажми, чтобы перестать)"
+watch.empty: "Ни за чем не слежу. Пришли <code>/watch ссылка-на-MR</code>."

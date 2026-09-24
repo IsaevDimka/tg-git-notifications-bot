@@ -151,3 +151,14 @@ async def test_noise_settings_defaults_and_update(store):
     await store.update_user(1, mute_bots=False, muted_projects=frozenset({"g/app"}))
     user = await store.get_user(1)
     assert not user.mute_bots and user.muted_projects == frozenset({"g/app"})
+
+
+async def test_watch_refs(store):
+    await _user(store, 1)
+    acc = await store.add_account(1, "gitlab", "gitlab.example.com", "me", "s", NOW)
+    assert await store.add_watch_ref(acc.id, "g/app", 5, NOW)
+    assert not await store.add_watch_ref(acc.id, "g/app", 5, NOW)
+    await store.add_watch_ref(acc.id, "g/lib", 7, NOW)
+    assert await store.watch_refs(acc.id) == [("g/app", 5), ("g/lib", 7)]
+    await store.delete_watch_ref(acc.id, "g/app", 5)
+    assert await store.watch_refs(acc.id) == [("g/lib", 7)]

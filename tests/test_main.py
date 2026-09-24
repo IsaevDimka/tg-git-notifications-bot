@@ -12,7 +12,7 @@ from tests.tg import make_cfg
 # One sample of every callback_data family the bot emits (keyboards in Tasks 8–12).
 SAMPLE_CALLBACKS = [
     "ob:gl", "ob:tz:UTC", "adm:ok:1", "a:read:1", "a:sz:1:2h", "mr:rev", "ib:all", "ib:r:0",
-    "st:k:mention", "st:lg:ru", "st:dg", "acc:add", "acc:rm!:1",
+    "st:k:mention", "st:lg:ru", "st:dg", "acc:add", "acc:rm!:1", "wt:rm:0",
 ]
 
 

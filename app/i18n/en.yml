@@ -44,6 +44,7 @@ help.text: |-
   /mr — all your merge requests: to review and your own
   /my — only your own merge requests (author or assignee)
   /mute — mute a noisy project
+  /watch — follow someone else's MR by link
   /accounts — connected GitLab and GitHub accounts
   /settings — notifications, daily summary, quiet hours, language, time zone
   /lang — switch language (RU / EN)
@@ -187,3 +188,10 @@ mute.header: "🔕 <b>Projects</b>\nTap to mute a project or bring its notificat
 mute.empty: "No projects yet — they appear after the first check."
 mute.done: "🔕 {project} is muted."
 mute.undone: "🔔 {project} is back on."
+cmd.watch: "Follow someone else's MR"
+watch.usage: "Send a link: <code>/watch https://gitlab.company.com/group/app/-/merge_requests/42</code> or a GitHub PR link."
+watch.no_account: "Connect an account for {host} first — /start."
+watch.failed: "Couldn't open that merge request — check the link and that your token can see the project."
+watch.added: "👁 Following {ref} — {title}. I'll tell you about approvals and when it's merged or closed."
+watch.header: "👁 <b>Following</b> (tap to stop)"
+watch.empty: "Not following anything. Send <code>/watch link-to-MR</code>."

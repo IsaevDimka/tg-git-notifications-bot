@@ -218,3 +218,11 @@ async def test_assigned_pr_counts_as_mine(gh):
     respx.get(f"{API}/search/issues").mock(side_effect=respond)
     [it] = await gh.list_items("me")
     assert it.iid == 4 and it.role is Role.AUTHOR and it.labels == ("blocker",)
+
+
+@respx.mock
+async def test_get_by_ref(gh):
+    respx.get(f"{API}/repos/acme/app/pulls/5").mock(return_value=httpx.Response(200, json={
+        **search_pr(5, author="bob"), "state": "open", "merged": False}))
+    it = await gh.get_by_ref("acme/app", 5, Role.WATCHER)
+    assert it.role is Role.WATCHER and it.state == "opened" and it.key == "github.com:acme/app:5"

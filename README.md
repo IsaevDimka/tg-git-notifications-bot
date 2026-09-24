@@ -77,6 +77,7 @@ Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the 
 | `/inbox` | Merge requests where it's your move, with unread counts |
 | `/mr` | Everything you review and everything you authored |
 | `/my` | Only your own merge requests |
+| `/watch <link>` | Follow someone else's MR: approvals, merged, closed |
 | `/mute` | Mute a noisy project (list with buttons, or `/mute group/project`) |
 | `/lang` | Switch language (RU / EN) |
 | `/accounts` | Connected accounts, their status; disconnect |

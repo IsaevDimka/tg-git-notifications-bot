@@ -134,9 +134,12 @@ class GitHub:
         return list(found.values())
 
     async def fetch_item(self, item: ReviewItem) -> ReviewItem:
-        pr = (await self._req("GET", f"{self._repo(item)}/pulls/{item.iid}")).json()
+        return await self.get_by_ref(item.project_id, item.iid, item.role)
+
+    async def get_by_ref(self, project: str, iid: int, role: Role) -> ReviewItem:
+        pr = (await self._req("GET", f"/repos/{project}/pulls/{iid}")).json()
         state = "merged" if pr.get("merged") else ("opened" if pr["state"] == "open" else "closed")
-        return self._item(pr, item.role, item.project_id, state)
+        return self._item(pr, role, project, state)
 
     async def details(self, item: ReviewItem) -> Details:
         owner, name = item.project_id.split("/", 1)

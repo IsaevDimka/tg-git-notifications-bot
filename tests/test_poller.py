@@ -362,3 +362,36 @@ async def test_reminders_are_capped_per_tick(store):
     assert len([e for e in await events(store) if e.kind is Kind.STALE_REVIEW]) == 5
     await poll_account(p, store, acc, NOW + timedelta(minutes=6))
     assert len([e for e in await events(store) if e.kind is Kind.STALE_REVIEW]) == 7
+
+
+async def test_watched_by_link_reports_approvals_and_merge(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    theirs = item(Role.REVIEWER, 9, author="bob")  # role is overridden to WATCHER by get_by_ref
+    p.by_ref[("g/app", 9)] = theirs
+    p.details_by_key[theirs.key] = details()
+    await store.add_watch_ref(acc.id, "g/app", 9, NOW)
+    await poll_account(p, store, acc, NOW)
+    w = await store.get_watched(acc.id, theirs.key)
+    assert w.role is Role.WATCHER and w.ball is Ball.NONE
+    assert await events(store) == []  # watching is not a review request
+    p.by_ref[("g/app", 9)] = replace(theirs, updated_at=theirs.updated_at + timedelta(hours=1))
+    p.details_by_key[theirs.key] = details(approved=["carol"])
+    await poll_account(p, store, acc, NOW + timedelta(hours=1))
+    p.by_ref[("g/app", 9)] = replace(theirs, state="merged")
+    await poll_account(p, store, acc, NOW + timedelta(hours=2))
+    assert [e.kind for e in await events(store)] == [Kind.APPROVED, Kind.MERGED]
+    assert await store.watch_refs(acc.id) == []
+    assert await store.get_watched(acc.id, theirs.key) is None
+
+
+async def test_watching_my_own_review_item_does_not_duplicate(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mine = item(Role.REVIEWER, 9)
+    p.items = [mine]
+    p.by_ref[("g/app", 9)] = mine
+    p.details_by_key[mine.key] = details()
+    await store.add_watch_ref(acc.id, "g/app", 9, NOW)
+    await poll_account(p, store, acc, NOW)
+    assert (await store.get_watched(acc.id, mine.key)).role is Role.REVIEWER

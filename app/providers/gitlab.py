@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -111,6 +112,10 @@ class GitLab:
 
     async def fetch_item(self, item: ReviewItem) -> ReviewItem:
         return self._item(await self._get(self._mr_path(item)), item.role)
+
+    async def get_by_ref(self, project: str, iid: int, role: Role) -> ReviewItem:
+        """Look up an MR by its project path (as in the URL) — for /watch."""
+        return self._item(await self._get(f"/projects/{quote(project, safe='')}/merge_requests/{iid}"), role)
 
     async def details(self, item: ReviewItem) -> Details:
         path = self._mr_path(item)
