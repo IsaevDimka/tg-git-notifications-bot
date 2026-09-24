@@ -87,3 +87,11 @@ def test_conflict_reported_once():
 def test_reviewer_does_not_get_approval_events():
     old = snapshot(details())
     assert diff(old, details(approved=["bob"]), item(Role.REVIEWER), ME) == []
+
+
+def test_rerequest_emits_review_requested():
+    old = snapshot(details(thread("t1", note(1, ME)), cr=[ME]))
+    d = details(thread("t1", note(1, ME)), cr=[ME], pending=[ME])
+    [ev] = diff(old, d, item(Role.REVIEWER), ME)
+    assert ev.kind is Kind.REVIEW_REQUESTED and ev.actor == "alice"
+    assert diff(snapshot(d), d, item(Role.REVIEWER), ME) == []

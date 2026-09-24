@@ -10,10 +10,8 @@ from app.i18n import pick_lang, t
 
 InputHandler = Callable[..., Awaitable[None]]
 _HANDLERS: dict[str, InputHandler] = {}
-_TOKEN_SHAPE = re.compile(
-    r"^\s*(?:glpat-|gh[pousr]_|github_pat_)[A-Za-z0-9_-]{10,}\s*$"
-    r"|^\s*[A-Za-z0-9_-]{20,}\s*$"
-)
+_PREFIXED_TOKEN = re.compile(r"(?:glpat-|gh[pousr]_|github_pat_)[A-Za-z0-9_-]{10,}")  # anywhere in the text
+_BARE_TOKEN = re.compile(r"^\s*[A-Za-z0-9_-]{20,}\s*$")  # old-style GitLab token sent on its own
 
 
 def register(kind: str, handler: InputHandler) -> None:
@@ -25,7 +23,8 @@ def expect(ctx, kind: str, **data) -> None:
 
 
 def looks_like_token(text: str | None) -> bool:
-    return bool(_TOKEN_SHAPE.match(text or ""))
+    text = text or ""
+    return bool(_PREFIXED_TOKEN.search(text) or _BARE_TOKEN.match(text))
 
 
 async def delete_quietly(message) -> bool:

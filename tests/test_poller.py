@@ -72,7 +72,7 @@ async def test_changed_item_is_diffed(store):
     p.details_by_key[mr.key] = details(thread("t1", note(1, "me", "why?"), note(2, "alice", "because")))
     await poll_account(p, store, acc, NOW + timedelta(hours=1))
     kinds = [e.kind for e in await events(store)]
-    assert kinds == [Kind.REVIEW_REQUESTED, Kind.REPLY_TO_ME]
+    assert kinds == [Kind.REPLY_TO_ME]  # I had already commented when it first appeared → no review request
 
 
 async def test_one_failing_mr_does_not_block_others(store):
@@ -176,7 +176,7 @@ async def test_mention_duplicate_of_reply_is_dropped(store):
     p.details_by_key[mr.key] = details(thread("t1", note(1, "me", "why?"), note(2, "alice", "@me done")))
     p.mention_list = [Mention("2", "alice", "@me done", "u", "T", NOW)]
     await poll_account(p, store, acc, NOW + timedelta(hours=1))
-    assert [e.kind for e in await events(store)] == [Kind.REVIEW_REQUESTED, Kind.REPLY_TO_ME]
+    assert [e.kind for e in await events(store)] == [Kind.REPLY_TO_ME]
 
 
 async def test_mentions_failure_does_not_fail_poll(store):
@@ -220,3 +220,29 @@ async def test_poll_due_marks_undecryptable_token_as_auth(store):
 
     assert await poll_due(store, broken, NOW) == 1
     assert (await store.get_account(acc.id)).last_error == "auth"
+
+
+async def test_unchanged_items_are_rechecked_hourly(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mine = item(Role.AUTHOR, 5, author="me", updated="2026-09-24T11:30:00Z")
+    p.items = [mine]
+    p.details_by_key[mine.key] = details(pending=["bob"])
+    await poll_account(p, store, acc, NOW)
+    p.details_by_key[mine.key] = details(pending=["bob"], conflicts=True)
+    await poll_account(p, store, acc, NOW + timedelta(minutes=30))
+    assert len(calls(p, "details")) == 1
+    await poll_account(p, store, acc, NOW + timedelta(minutes=61))
+    assert len(calls(p, "details")) == 2
+    assert [e.kind for e in await events(store)] == [Kind.CONFLICT]
+
+
+async def test_new_item_i_already_reviewed_is_not_a_review_request(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    commented, approved = item(Role.REVIEWER, 1), item(Role.REVIEWER, 2)
+    p.items = [commented, approved]
+    p.details_by_key[commented.key] = details(thread("t1", note(1, "me", "nit")))
+    p.details_by_key[approved.key] = details(approved=["me"])
+    await poll_account(p, store, acc, NOW)
+    assert await events(store) == []

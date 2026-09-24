@@ -66,6 +66,9 @@ class GitHub:
     # ---- transport ---------------------------------------------------------------------------
 
     def _check(self, r: httpx.Response) -> httpx.Response:
+        if 300 <= r.status_code < 400:
+            location = r.headers.get("location", "?")
+            raise ProviderError(f"github.com: redirects to {location}", status=r.status_code)
         if r.status_code == 401:
             raise AuthError("github.com: token rejected", status=401)
         if r.status_code >= 400:

@@ -21,9 +21,11 @@ COPY --from=build /opt/venv /opt/venv
 WORKDIR /srv
 COPY app ./app
 
-RUN useradd --system --uid 10001 bot && mkdir -p /data && chown bot /data
-USER bot
+COPY entrypoint.sh /entrypoint.sh
+RUN groupadd --system --gid 10001 bot && useradd --system --uid 10001 --gid 10001 bot \
+    && mkdir -p /data && chown bot:bot /data
 VOLUME /data
 
 HEALTHCHECK --interval=60s --timeout=5s --start-period=90s CMD ["python", "-m", "app.health"]
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "-m", "app"]

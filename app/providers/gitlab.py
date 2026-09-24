@@ -35,6 +35,9 @@ class GitLab:
     # ---- transport ---------------------------------------------------------------------------
 
     def _check(self, r: httpx.Response) -> httpx.Response:
+        if 300 <= r.status_code < 400:  # never follow: PRIVATE-TOKEN would travel to the new host
+            location = r.headers.get("location", "?")
+            raise ProviderError(f"{self.host}: redirects to {location} — use the final address", status=r.status_code)
         if r.status_code == 401:
             raise AuthError(f"{self.host}: token rejected", status=401)
         if r.status_code >= 400:
@@ -148,7 +151,9 @@ class GitLab:
                 r["user"]["username"] for r in reviewers if r.get("state") == "requested_changes"
             ),
             pending_reviewers=tuple(
-                r["user"]["username"] for r in reviewers if r["user"]["username"] not in approved
+                r["user"]["username"]
+                for r in reviewers
+                if r["user"]["username"] not in approved and r.get("state", "") in ("unreviewed", "")
             ),
             has_conflicts=bool(mr.get("has_conflicts")),
             approvals_left=approvals.get("approvals_left"),

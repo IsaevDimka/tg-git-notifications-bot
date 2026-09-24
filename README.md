@@ -36,8 +36,8 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 
    The bot deletes your message with the token immediately and stores it encrypted.
 
-> Use a **named volume** (as above). A bind mount like `-v ./data:/data` must be writable by uid 10001:
-> `sudo chown 10001 ./data`.
+> Keep `/data` on a volume. At start the container hands `/data` to its unprivileged user (uid 10001) and then
+> drops root, so root-owned volumes on Fly, Railway or Render and plain bind mounts work as is.
 
 ## Configuration
 

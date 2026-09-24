@@ -52,3 +52,14 @@ async def deliver_user(bot, store: Store, user: User, now: datetime) -> int:
     except (NetworkError, RetryAfter) as err:
         log.warning("delivery to %s postponed: %s", user.tg_id, err)
     return sent
+
+
+async def deliver_all(bot, store: Store, now: datetime) -> int:
+    """One user's failure must never hold up everybody after them."""
+    sent = 0
+    for user in await store.active_users():
+        try:
+            sent += await deliver_user(bot, store, user, now)
+        except Exception:
+            log.exception("delivery failed for user %s", user.tg_id)
+    return sent

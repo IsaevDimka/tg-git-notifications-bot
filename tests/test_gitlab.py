@@ -131,7 +131,7 @@ async def test_details_maps_threads_approvals_and_pipeline(gl):
     assert threads["d1"].notes[1].url.endswith("/merge_requests/1#note_11")
     assert d.approved_by == frozenset({"bob"})
     assert d.changes_requested_by == frozenset({"dave"})
-    assert d.pending_reviewers == ("dave", "erin")
+    assert d.pending_reviewers == ("erin",)
     assert d.has_conflicts and d.approvals_left == 1 and d.pipeline == "failed"
 
 
@@ -210,3 +210,17 @@ async def test_make_provider_gitlab():
         assert isinstance(p, GitLab) and p.host == HOST
         with pytest.raises(ValueError):
             make_provider("bitbucket", "x", "t", client)
+
+
+@respx.mock
+async def test_redirect_is_an_error_not_followed(gl):
+    respx.get(MR).mock(return_value=httpx.Response(302, headers={"location": "https://sso.example.com/login"}))
+    with pytest.raises(ProviderError, match="sso.example.com"):
+        await gl.details(item(Role.REVIEWER, 1))
+
+
+@respx.mock
+async def test_redirect_on_write_is_an_error(gl):
+    respx.post(f"{MR}/approve").mock(return_value=httpx.Response(302, headers={"location": "https://x/login"}))
+    with pytest.raises(ProviderError):
+        await gl.approve(item(Role.REVIEWER, 1))

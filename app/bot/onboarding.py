@@ -126,7 +126,7 @@ async def on_token(update, ctx, user: User, pending: dict) -> None:
             t(lang, "token.invalid", host=esc(host)), parse_mode=ParseMode.HTML, reply_markup=connect_keyboard(lang)
         )
         return
-    except (ProviderError, httpx.HTTPError):
+    except (ProviderError, httpx.HTTPError, ValueError, KeyError):  # ValueError: HTML instead of JSON
         await chat.send_message(
             t(lang, "token.unreachable", host=esc(host)), parse_mode=ParseMode.HTML,
             reply_markup=connect_keyboard(lang),
@@ -136,7 +136,7 @@ async def on_token(update, ctx, user: User, pending: dict) -> None:
     await st.add_account(user.tg_id, kind, host, ident.username, deps.box(ctx).seal(token), timeutil.now())
     try:
         count = sum(1 for i in await provider.list_items(ident.username) if i.role is Role.REVIEWER)
-    except (ProviderError, httpx.HTTPError):
+    except (ProviderError, httpx.HTTPError, ValueError, KeyError):
         count = 0
     text = t(lang, "token.ok", username=esc(ident.username), host=esc(host), count=count)
     scope = WRITE_SCOPES[kind]

@@ -196,3 +196,10 @@ async def test_fetch_item_merged(gh):
 async def test_make_provider_github():
     async with httpx.AsyncClient() as client:
         assert isinstance(make_provider("github", "github.com", "t", client), GitHub)
+
+
+@respx.mock
+async def test_redirect_is_an_error(gh):
+    respx.get(f"{API}/user").mock(return_value=httpx.Response(301, headers={"location": "https://elsewhere/"}))
+    with pytest.raises(ProviderError, match="elsewhere"):
+        await gh.whoami()

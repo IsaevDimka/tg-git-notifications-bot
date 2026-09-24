@@ -25,6 +25,8 @@ def whose_ball(item: ReviewItem, d: Details, me: str) -> Ball:
 def _as_author(d: Details, me: str) -> Ball:
     if d.has_conflicts:
         return Ball.ME
+    if d.changes_requested_by - set(d.pending_reviewers) - {me}:  # not yet re-requested
+        return Ball.ME
     if any(t.resolvable and _open(t) and t.notes[-1].author != me for t in d.threads):
         return Ball.ME
     if d.approvals_left == 0 and d.approved_by:
@@ -34,6 +36,8 @@ def _as_author(d: Details, me: str) -> Ball:
 
 def _as_reviewer(d: Details, me: str) -> Ball:
     if any(awaits_me(t, me) for t in d.threads):
+        return Ball.ME
+    if me in d.pending_reviewers:  # (re-)requested and not reviewed since
         return Ball.ME
     if me in d.approved_by:
         return Ball.NONE

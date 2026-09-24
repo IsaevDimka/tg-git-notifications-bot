@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from telegram.error import BadRequest, Forbidden, NetworkError
 
-from app.core.delivery import deliver_user
+from app.core.delivery import deliver_all, deliver_user
 from app.models import Event, Kind
 from tests.factories import NOW, item, note
 
@@ -12,11 +12,14 @@ from tests.factories import NOW, item, note
 
 
 class FakeBot:
-    def __init__(self, fail=None):
+    def __init__(self, fail=None, fail_chat=None):
         self.sent: list[tuple[int, str, dict]] = []
         self.fail = fail  # callable(text) -> Exception | None
+        self.fail_chat = fail_chat or {}  # chat_id -> Exception
 
     async def send_message(self, chat_id, text, **kw):
+        if chat_id in self.fail_chat:
+            raise self.fail_chat[chat_id]
         if self.fail and (err := self.fail(text)):
             raise err
         self.sent.append((chat_id, text, kw))
@@ -112,3 +115,15 @@ async def test_snoozed_event_returns_individually(store):
     bot = FakeBot()
     assert await deliver_user(bot, store, replace(user), NOW) == 2
     assert all(kw["reply_markup"] is not None for _, _, kw in bot.sent)
+
+
+async def test_one_users_failure_does_not_stop_others(store):
+    acc, _ = await setup(store)
+    await store.register_user(2, 200, "bob", "en", True, 180, NOW)
+    await store.update_user(2, tz="UTC", quiet_weekends=False)
+    acc2 = await store.add_account(2, "gitlab", "gitlab.example.com", "bob", "s", NOW)
+    await store.add_event(1, acc.id, comment(1), NOW)
+    await store.add_event(2, acc2.id, comment(2), NOW)
+    bot = FakeBot(fail_chat={100: RuntimeError("boom")})
+    await deliver_all(bot, store, NOW)
+    assert [chat for chat, _, _ in bot.sent] == [200]

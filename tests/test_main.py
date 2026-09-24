@@ -50,3 +50,9 @@ def test_health_follows_heartbeat(tmp_path):
     stale = time.time() - 600
     os.utime(tmp_path / "heartbeat", (stale, stale))
     assert not health.check(tmp_path)
+
+
+def test_http_client_does_not_follow_redirects():
+    from app.main import make_http
+
+    assert make_http().follow_redirects is False

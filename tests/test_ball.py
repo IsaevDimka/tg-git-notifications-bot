@@ -78,3 +78,16 @@ def test_awaits_me_requires_participation_and_open_thread():
     assert not awaits_me(thread("t", note(1, "a"), note(2, "b")), ME)
     assert not awaits_me(thread("t", note(1, ME), note(2, "a"), resolved=True), ME)
     assert not awaits_me(thread("t", note(1, "a"), note(2, ME)), ME)
+
+
+def test_author_changes_requested_without_threads_is_mine():
+    assert whose_ball(item(Role.AUTHOR, author=ME), details(cr=["dave"]), ME) is Ball.ME
+
+
+def test_author_after_rerequest_waits_for_reviewer():
+    assert whose_ball(item(Role.AUTHOR, author=ME), details(cr=["dave"], pending=["dave"]), ME) is Ball.THEM
+
+
+def test_reviewer_rerequested_is_my_move_even_after_taking_part():
+    d = details(thread("t1", note(1, "alice"), note(2, ME)), cr=[ME], pending=[ME])
+    assert whose_ball(item(Role.REVIEWER), d, ME) is Ball.ME

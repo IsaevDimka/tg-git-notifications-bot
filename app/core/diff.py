@@ -1,6 +1,7 @@
 """Compare the stored snapshot of a merge request with fresh Details and emit Events."""
 
 from app.models import Details, Event, Kind, ReviewItem, Role, mentions_user
+from app.timeutil import iso
 
 
 def snapshot(d: Details) -> dict:
@@ -18,7 +19,20 @@ def snapshot(d: Details) -> dict:
 
 
 def diff(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event]:
-    return [*_notes(old, d, item, me), *_resolutions(old, d, item, me), *_author_events(old, d, item, me)]
+    return [
+        *_notes(old, d, item, me),
+        *_resolutions(old, d, item, me),
+        *_author_events(old, d, item, me),
+        *_rerequest(old, d, item, me),
+    ]
+
+
+def _rerequest(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event]:
+    if item.role is not Role.REVIEWER or me not in d.pending_reviewers:
+        return []
+    if me in old.get("pending_reviewers", ()):
+        return []
+    return [Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}:{iso(item.updated_at)}", item=item, actor=item.author)]
 
 
 def _notes(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event]:

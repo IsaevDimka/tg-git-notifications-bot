@@ -7,13 +7,14 @@ from datetime import datetime, timedelta
 
 from app.core.ball import whose_ball
 from app.core.diff import diff, snapshot
-from app.models import Ball, Event, Kind, Note, ReviewItem, Role
+from app.models import Ball, Details, Event, Kind, Note, ReviewItem, Role
 from app.providers.base import AuthError, Provider, ProviderError
 from app.storage.store import Account, Store, Watched
 from app.timeutil import iso, parse_ts
 
 log = logging.getLogger(__name__)
 ESCALATE_AFTER = timedelta(hours=24)
+REFRESH_EVERY = timedelta(hours=1)  # conflicts / resolutions don't always bump updated_at
 
 
 @dataclass(frozen=True)
@@ -49,25 +50,40 @@ def _escalation(w: Watched, now: datetime, synced: bool) -> list[Event]:
     ]
 
 
+def _refreshed(w: Watched) -> datetime:
+    stamp = w.snapshot.get("refreshed_at")
+    return parse_ts(stamp) if stamp else w.updated_at_remote
+
+
+def _already_reviewed(d: Details, me: str) -> bool:
+    """A newly listed MR I've already approved or commented on isn't news (e.g. a drive-by GitHub review)."""
+    return (
+        me in d.approved_by
+        or me in d.changes_requested_by
+        or any(n.author == me for t in d.threads for n in t.notes)
+    )
+
+
 async def _poll_item(
     provider: Provider, store: Store, account: Account, item: ReviewItem, now: datetime
 ) -> tuple[list[Event], Watched | None]:
     me = account.username
     old = await store.get_watched(account.id, item.key)
-    if old is not None and item.updated_at <= old.updated_at_remote:
+    if old is not None and item.updated_at <= old.updated_at_remote and now - _refreshed(old) < REFRESH_EVERY:
         return _escalation(old, now, account.synced), None
     d = await provider.details(item)
     ball = whose_ball(item, d, me)
     events: list[Event] = []
     if old is None:
         since = item.updated_at
-        if account.synced and item.role is Role.REVIEWER:
+        if account.synced and item.role is Role.REVIEWER and not _already_reviewed(d, me):
             events.append(Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}", item=item, actor=item.author))
     else:
         since = old.ball_since if ball == old.ball else item.updated_at
         if account.synced:
             events += diff(old.snapshot, d, item, me)
-    w = Watched(account.id, item.key, item.role, item, item.updated_at, snapshot(d), ball, since)
+    snap = {**snapshot(d), "refreshed_at": iso(now)}
+    w = Watched(account.id, item.key, item.role, item, item.updated_at, snap, ball, since)
     return events + _escalation(w, now, account.synced), w
 
 

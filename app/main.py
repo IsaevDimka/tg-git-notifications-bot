@@ -17,7 +17,7 @@ from telegram.ext import (
 from app import timeutil
 from app.bot import access, actions, inputs, onboarding, settings, views
 from app.config import Config, ensure_writable, load_config
-from app.core.delivery import deliver_user
+from app.core.delivery import deliver_all
 from app.core.poller import poll_due
 from app.crypto import TokenBox
 from app.health import beat
@@ -70,16 +70,21 @@ async def _delivery_loop(app: Application) -> None:
     store = app.bot_data["store"]
     while True:
         try:
-            for user in await store.active_users():
-                await deliver_user(app.bot, store, user, timeutil.now())
+            await deliver_all(app.bot, store, timeutil.now())
         except Exception:
             log.exception("delivery cycle failed")
         await asyncio.sleep(DELIVERY_TICK)
 
 
+def make_http() -> httpx.AsyncClient:
+    # Redirects are never followed: GitLab's PRIVATE-TOKEN header would be re-sent to the new host,
+    # and a redirected POST silently becomes a GET that "succeeds".
+    return httpx.AsyncClient(timeout=20, follow_redirects=False)
+
+
 async def _post_init(app: Application) -> None:
     cfg: Config = app.bot_data["cfg"]
-    http = httpx.AsyncClient(timeout=20, follow_redirects=True)
+    http = make_http()
     app.bot_data.update(
         http=http,
         box=TokenBox.from_dir(cfg.data_dir),

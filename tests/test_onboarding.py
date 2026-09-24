@@ -35,6 +35,7 @@ def test_looks_like_token():
     assert inputs.looks_like_token("ghp_" + "a" * 36)
     assert inputs.looks_like_token("github_pat_" + "a" * 40)
     assert inputs.looks_like_token("  abcdefghij0123456789  ")
+    assert inputs.looks_like_token("here it is: glpat-abcdefghijklmnop thanks")
     assert not inputs.looks_like_token("thanks, will fix tomorrow")
     assert not inputs.looks_like_token("ok")
 
@@ -216,3 +217,26 @@ async def test_unregistered_user_is_told_to_start(store):
     upd = message_update("hello?")
     await inputs.on_text(upd, ctx)
     assert "/start" in texts(upd.effective_chat.send_message)[0]
+
+
+async def test_html_instead_of_json_is_reported_not_swallowed(store):
+    provider = FakeProvider()
+    provider.whoami_error = ValueError("Expecting value: line 1 column 1")
+    ctx = make_ctx(store, provider)
+    await start(ctx)
+    inputs.expect(ctx, "token", provider="gitlab", host="gitlab.example.com")
+    upd = message_update("glpat-secretsecret123")
+    await inputs.on_text(upd, ctx)
+    assert await store.accounts_for(1) == []
+    assert "gitlab.example.com" in texts(upd.effective_chat.send_message)[0]
+
+
+async def test_token_inside_reply_text_is_deleted_not_posted(store):
+    provider = FakeProvider()
+    ctx = make_ctx(store, provider)
+    await start(ctx)
+    inputs.expect(ctx, "reply", event_id=1)
+    upd = message_update("here is my token glpat-abcdefghijklmnop")
+    await inputs.on_text(upd, ctx)
+    upd.message.delete.assert_awaited_once()
+    assert provider.calls == []
