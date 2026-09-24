@@ -45,6 +45,7 @@ help.text: |-
   /my — только твои MR (автор или assignee)
   /mute — заглушить шумный проект
   /watch — следить за чужим MR по ссылке
+  /status — работает ли бот; /test — образцы уведомлений
   /accounts — подключённые GitLab и GitHub
   /settings — уведомления, ежедневная сводка, тихие часы, язык, таймзона
   /lang — сменить язык (RU / EN)
@@ -195,3 +196,15 @@ watch.failed: "Не смог открыть этот MR — проверь сс�
 watch.added: "👁 Слежу за {ref} — {title}. Сообщу про апрувы и когда его вольют или закроют."
 watch.header: "👁 <b>Слежу за MR</b> (нажми, чтобы перестать)"
 watch.empty: "Ни за чем не слежу. Пришли <code>/watch ссылка-на-MR</code>."
+cmd.status: "Работает ли бот"
+status.header: "🩺 <b>Статус</b>"
+status.no_accounts: "Нет подключённых аккаунтов — /start."
+status.account: "<b>{host}</b> — @{username}"
+status.ok: "✅ последний успешный опрос {ago} назад"
+status.never: "⏳ ещё не опрашивал"
+status.error: "⚠️ последняя ошибка: {error}"
+status.counts: "на ревью: {review} · мои: {mine} · слежу: {watching}"
+status.rate: "осталось запросов к API: {n}"
+status.queue: "Уведомлений ждут отправки: {count}"
+status.quiet_now: "🌙 Сейчас тихие часы — уведомления придут, когда они закончатся."
+test.intro: "🧪 <b>Так выглядят уведомления</b> (кнопки в образцах не работают):"

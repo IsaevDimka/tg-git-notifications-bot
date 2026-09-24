@@ -234,3 +234,10 @@ async def test_get_by_ref_uses_encoded_project_path(gl):
         return_value=httpx.Response(200, json=mr_json(42, author="bob")))
     it = await gl.get_by_ref("g/sub/app", 42, Role.WATCHER)
     assert route.called and it.role is Role.WATCHER and it.iid == 42 and it.key == f"{HOST}:7:42"
+
+
+@respx.mock
+async def test_remembers_rate_limit_remaining(gl):
+    respx.get(f"{BASE}/todos").mock(return_value=httpx.Response(200, json=[], headers={"RateLimit-Remaining": "1987"}))
+    await gl.mentions("me", None)
+    assert gl.rate_remaining == 1987

@@ -58,6 +58,7 @@ class GitHub:
 
     def __init__(self, token: str, client: httpx.AsyncClient):
         self._client = client
+        self.rate_remaining: int | None = None
         self._headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
@@ -67,6 +68,8 @@ class GitHub:
     # ---- transport ---------------------------------------------------------------------------
 
     def _check(self, r: httpx.Response) -> httpx.Response:
+        if (remaining := r.headers.get("x-ratelimit-remaining", "")).isdigit():
+            self.rate_remaining = int(remaining)
         if 300 <= r.status_code < 400:
             location = r.headers.get("location", "?")
             raise ProviderError(f"github.com: redirects to {location}", status=r.status_code)

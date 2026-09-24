@@ -45,6 +45,7 @@ help.text: |-
   /my — only your own merge requests (author or assignee)
   /mute — mute a noisy project
   /watch — follow someone else's MR by link
+  /status — is the bot working; /test — sample notifications
   /accounts — connected GitLab and GitHub accounts
   /settings — notifications, daily summary, quiet hours, language, time zone
   /lang — switch language (RU / EN)
@@ -195,3 +196,15 @@ watch.failed: "Couldn't open that merge request — check the link and that your
 watch.added: "👁 Following {ref} — {title}. I'll tell you about approvals and when it's merged or closed."
 watch.header: "👁 <b>Following</b> (tap to stop)"
 watch.empty: "Not following anything. Send <code>/watch link-to-MR</code>."
+cmd.status: "Is the bot working"
+status.header: "🩺 <b>Status</b>"
+status.no_accounts: "No accounts connected — /start."
+status.account: "<b>{host}</b> — @{username}"
+status.ok: "✅ last successful check {ago} ago"
+status.never: "⏳ not checked yet"
+status.error: "⚠️ last error: {error}"
+status.counts: "to review: {review} · mine: {mine} · following: {watching}"
+status.rate: "API requests left: {n}"
+status.queue: "Notifications waiting to be sent: {count}"
+status.quiet_now: "🌙 Quiet hours now — notifications arrive when they end."
+test.intro: "🧪 <b>This is what notifications look like</b> (buttons don't work in samples):"

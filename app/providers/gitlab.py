@@ -31,11 +31,14 @@ class GitLab:
         self.host = host
         self._base = f"https://{host}/api/v4"
         self._client = client
+        self.rate_remaining: int | None = None
         self._headers = {"PRIVATE-TOKEN": token}
 
     # ---- transport ---------------------------------------------------------------------------
 
     def _check(self, r: httpx.Response) -> httpx.Response:
+        if (remaining := r.headers.get("RateLimit-Remaining", "")).isdigit():
+            self.rate_remaining = int(remaining)
         if 300 <= r.status_code < 400:  # never follow: PRIVATE-TOKEN would travel to the new host
             location = r.headers.get("location", "?")
             raise ProviderError(f"{self.host}: redirects to {location} — use the final address", status=r.status_code)

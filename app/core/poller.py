@@ -223,6 +223,7 @@ async def poll_one(store: Store, provider: Provider, account: Account, now: date
         last_ok_at=iso(now),
         last_error=None,
         mentions_cursor=iso(res.mentions_cursor),
+        rate_remaining=getattr(provider, "rate_remaining", None),
     )
 
 

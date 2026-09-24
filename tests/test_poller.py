@@ -395,3 +395,11 @@ async def test_watching_my_own_review_item_does_not_duplicate(store):
     await store.add_watch_ref(acc.id, "g/app", 9, NOW)
     await poll_account(p, store, acc, NOW)
     assert (await store.get_watched(acc.id, mine.key)).role is Role.REVIEWER
+
+
+async def test_poll_one_stores_rate_limit(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    p.rate_remaining = 321
+    await poll_one(store, p, acc, NOW)
+    assert (await store.get_account(acc.id)).rate_remaining == 321

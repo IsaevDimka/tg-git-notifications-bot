@@ -58,6 +58,7 @@ class Account:
     last_ok_at: str | None
     last_error: str | None
     mentions_cursor: str | None
+    rate_remaining: int | None = None  # API requests left, as last reported by the host
 
 
 @dataclass(frozen=True)
@@ -91,7 +92,9 @@ _USER_FIELDS = frozenset(
         "digest_enabled", "digest_time", "digest_last", "mute_bots", "mute_drafts", "muted_projects",
     }
 )
-_ACCOUNT_FIELDS = frozenset({"synced", "last_poll_at", "last_ok_at", "last_error", "mentions_cursor"})
+_ACCOUNT_FIELDS = frozenset(
+    {"synced", "last_poll_at", "last_ok_at", "last_error", "mentions_cursor", "rate_remaining"}
+)
 
 
 def _ts(value: str | None) -> datetime | None:
@@ -135,6 +138,7 @@ def _account(r) -> Account:
         last_ok_at=r["last_ok_at"],
         last_error=r["last_error"],
         mentions_cursor=r["mentions_cursor"],
+        rate_remaining=r["rate_remaining"],
     )
 
 

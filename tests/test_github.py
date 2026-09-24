@@ -226,3 +226,11 @@ async def test_get_by_ref(gh):
         **search_pr(5, author="bob"), "state": "open", "merged": False}))
     it = await gh.get_by_ref("acme/app", 5, Role.WATCHER)
     assert it.role is Role.WATCHER and it.state == "opened" and it.key == "github.com:acme/app:5"
+
+
+@respx.mock
+async def test_remembers_rate_limit_remaining(gh):
+    respx.get(f"{API}/user").mock(return_value=httpx.Response(200, json={"login": "me"},
+                                                              headers={"x-ratelimit-remaining": "4990"}))
+    await gh.whoami()
+    assert gh.rate_remaining == 4990

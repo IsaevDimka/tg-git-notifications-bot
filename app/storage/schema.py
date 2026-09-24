@@ -79,4 +79,7 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (account_id, project, iid)
     );
     """,
+    """
+    ALTER TABLE accounts ADD COLUMN rate_remaining INTEGER;
+    """,
 ]

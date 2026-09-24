@@ -20,6 +20,7 @@ class FakeProvider:
         self.write_error: Exception | None = None
         self.by_ref: dict[tuple[str, int], ReviewItem | Exception] = {}
         self.calls: list[tuple] = []
+        self.rate_remaining: int | None = None
 
     async def whoami(self) -> Identity:
         if self.whoami_error:
