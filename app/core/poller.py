@@ -14,6 +14,9 @@ from app.timeutil import iso, parse_ts
 
 log = logging.getLogger(__name__)
 ESCALATE_AFTER = timedelta(hours=24)
+STALE_REVIEW_AFTER = timedelta(days=2)
+REMINDER_MAX_AGE = timedelta(days=30)
+REMINDERS_PER_TICK = 5  # a big backlog drains a few per poll instead of bursting
 REFRESH_EVERY = timedelta(hours=1)  # conflicts / resolutions don't always bump updated_at
 
 
@@ -31,23 +34,28 @@ async def _emit(store: Store, account: Account, events: list[Event], now: dateti
     return emitted
 
 
-def _escalation(w: Watched, now: datetime, synced: bool) -> list[Event]:
-    if not synced or w.role is not Role.AUTHOR or w.ball is not Ball.THEM or w.item.draft:
+def _reminders(w: Watched, now: datetime, synced: bool) -> list[Event]:
+    """Daily nudges while a move is overdue: my MR waits for reviewers (24 h+), or an MR waits for my
+    review (2 d+). Stop after REMINDER_MAX_AGE so abandoned MRs don't nag forever."""
+    if not synced or w.item.draft or w.ball is Ball.NONE:
         return []
-    if now - w.ball_since < ESCALATE_AFTER:
+    waited = now - w.ball_since
+    if waited > REMINDER_MAX_AGE:
         return []
-    pending = tuple(w.snapshot.get("pending_reviewers", ()))
-    if not pending:
-        return []
-    return [
-        Event(
-            Kind.WAITING_ON_REVIEWER,
-            dedup=f"wait:{w.key}:{now.date().isoformat()}",
-            item=w.item,
-            actors=pending,
-            since=w.ball_since,
-        )
-    ]
+    day = now.date().isoformat()
+    if w.role is Role.AUTHOR and w.ball is Ball.THEM and waited >= ESCALATE_AFTER:
+        pending = tuple(w.snapshot.get("pending_reviewers", ()))
+        if pending:
+            return [
+                Event(Kind.WAITING_ON_REVIEWER, dedup=f"wait:{w.key}:{day}", item=w.item, actors=pending,
+                      since=w.ball_since)
+            ]
+    if w.role is Role.REVIEWER and w.ball is Ball.ME and waited >= STALE_REVIEW_AFTER:
+        return [
+            Event(Kind.STALE_REVIEW, dedup=f"stale:{w.key}:{day}", item=w.item, actor=w.item.author,
+                  since=w.ball_since)
+        ]
+    return []
 
 
 def _refreshed(w: Watched) -> datetime:
@@ -66,12 +74,13 @@ def _already_reviewed(d: Details, me: str) -> bool:
 
 async def _poll_item(
     provider: Provider, store: Store, account: Account, item: ReviewItem, now: datetime
-) -> tuple[list[Event], Watched | None]:
+) -> tuple[list[Event], list[Event], Watched | None]:
+    """Returns (events, reminders, watched-to-save)."""
     me = account.username
     old = await store.get_watched(account.id, item.key)
     unchanged = old is not None and item.updated_at <= old.updated_at_remote and item.role is old.role
     if unchanged and now - _refreshed(old) < REFRESH_EVERY:
-        return _escalation(old, now, account.synced), None
+        return [], _reminders(old, now, account.synced), None
     d = await provider.details(item)
     ball = whose_ball(item, d, me)
     events: list[Event] = []
@@ -94,7 +103,7 @@ async def _poll_item(
         "rereview_since": rereview_since,
     }
     w = Watched(account.id, item.key, item.role, item, item.updated_at, snap, ball, since)
-    return events + _escalation(w, now, account.synced), w
+    return events, _reminders(w, now, account.synced), w
 
 
 async def _gone(provider: Provider, w: Watched) -> tuple[list[Event], bool]:
@@ -140,17 +149,26 @@ async def poll_account(provider: Provider, store: Store, account: Account, now: 
     items = await provider.list_items(account.username)
     listed = {i.key for i in items}
     emitted = 0
+    reminders: list[Event] = []
     for item in items:
         try:
-            events, watched = await _poll_item(provider, store, account, item, now)
+            events, due, watched = await _poll_item(provider, store, account, item, now)
         except AuthError:
             raise
         except ProviderError as e:
             log.warning("skipping %s: %s", item.key, e)
             continue
         emitted += await _emit(store, account, events, now)
+        reminders += due
         if watched is not None:
             await store.put_watched(watched)
+    sent_reminders = 0
+    for reminder in reminders:
+        if sent_reminders >= REMINDERS_PER_TICK:
+            break
+        if await store.add_event(account.tg_id, account.id, reminder, now) is not None:
+            sent_reminders += 1
+    emitted += sent_reminders
     for w in await store.list_watched(account.id):
         if w.key in listed:
             continue

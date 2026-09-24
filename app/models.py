@@ -34,6 +34,7 @@ class Kind(StrEnum):
     WAITING_ON_REVIEWER = "waiting_on_reviewer"
     TOKEN_BROKEN = "token_broken"
     REREVIEW = "rereview"
+    STALE_REVIEW = "stale_review"
 
 
 @dataclass(frozen=True)

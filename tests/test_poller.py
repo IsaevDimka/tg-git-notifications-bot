@@ -315,3 +315,50 @@ async def test_new_commits_after_my_review_make_it_my_move(store):
     await poll_account(p, store, acc, NOW + timedelta(hours=1))
     assert (await store.get_watched(acc.id, mr.key)).ball is Ball.ME
     assert [e.kind for e in await events(store)] == [Kind.REREVIEW]
+
+
+async def test_mr_waiting_on_my_review_is_reminded_daily(store):
+    acc = await make_account(store, synced=False)
+    p = FakeProvider()
+    old = item(Role.REVIEWER, 1, updated="2026-09-21T12:00:00Z")  # my move for 3 days
+    fresh = item(Role.REVIEWER, 2, updated="2026-09-23T10:00:00Z")  # 26 h now, 50 h tomorrow
+    p.items = [old, fresh]
+    p.details_by_key[old.key] = details()
+    p.details_by_key[fresh.key] = details()
+    await poll_account(p, store, acc, NOW)  # baseline
+    await store.update_account(acc.id, synced=1, mentions_cursor=iso(NOW))
+    acc = await store.get_account(acc.id)
+    await poll_account(p, store, acc, NOW + timedelta(minutes=3))
+    await poll_account(p, store, acc, NOW + timedelta(minutes=6))
+    stale = [e for e in await events(store) if e.kind is Kind.STALE_REVIEW]
+    assert [e.item.iid for e in stale] == [1] and stale[0].since == old.updated_at
+    await poll_account(p, store, acc, NOW + timedelta(days=1))
+    assert len([e for e in await events(store) if e.kind is Kind.STALE_REVIEW]) == 3  # #1 again, #2 now 2d+
+
+
+async def test_reminders_stop_after_30_days(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    ancient_review = item(Role.REVIEWER, 1, updated="2026-08-01T12:00:00Z")
+    ancient_mine = item(Role.AUTHOR, 2, author="me", updated="2026-08-01T12:00:00Z")
+    p.items = [ancient_review, ancient_mine]
+    p.details_by_key[ancient_review.key] = details()
+    p.details_by_key[ancient_mine.key] = details(pending=["bob"])
+    await poll_account(p, store, acc, NOW)
+    kinds = [e.kind for e in await events(store)]
+    assert Kind.STALE_REVIEW not in kinds and Kind.WAITING_ON_REVIEWER not in kinds
+
+
+async def test_reminders_are_capped_per_tick(store):
+    acc = await make_account(store, synced=False)
+    p = FakeProvider()
+    p.items = [item(Role.REVIEWER, i, updated="2026-09-20T12:00:00Z") for i in range(1, 8)]
+    for it in p.items:
+        p.details_by_key[it.key] = details()
+    await poll_account(p, store, acc, NOW)
+    await store.update_account(acc.id, synced=1, mentions_cursor=iso(NOW))
+    acc = await store.get_account(acc.id)
+    await poll_account(p, store, acc, NOW + timedelta(minutes=3))
+    assert len([e for e in await events(store) if e.kind is Kind.STALE_REVIEW]) == 5
+    await poll_account(p, store, acc, NOW + timedelta(minutes=6))
+    assert len([e for e in await events(store) if e.kind is Kind.STALE_REVIEW]) == 7
