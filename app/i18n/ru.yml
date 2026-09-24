@@ -42,8 +42,10 @@ help.text: |-
   <b>Команды</b>
   /inbox — где ход за тобой и что не прочитано
   /mr — все твои MR: на ревью и свои
+  /my — только твои MR
   /accounts — подключённые GitLab и GitHub
-  /settings — уведомления, тихие часы, язык, таймзона
+  /settings — уведомления, ежедневная сводка, тихие часы, язык, таймзона
+  /lang — сменить язык (RU / EN)
   /start — подключить ещё один аккаунт
 ev.review_requested: "🔔 <b>Новый MR на ревью</b> от {actor}"
 ev.new_comment: "💬 <b>{actor}</b> оставил комментарий"
@@ -151,3 +153,15 @@ cmd.accounts: "Подключённые аккаунты"
 cmd.settings: "Настройки"
 cmd.help: "Справка"
 cmd.start: "Подключить аккаунт"
+cmd.my: "Мои MR"
+cmd.lang: "Язык / Language"
+lang.choose: "Выбери язык / Choose language:"
+lang.set: "🌐 Язык: Русский. Меню команд обновлено."
+st.digest_on: "☀️ Сводка: {time}"
+st.digest_off: "☀️ Сводка: выкл"
+st.digest_time: "🕘 Время сводки"
+daily.header: "☀️ <b>Сводка на сегодня</b>"
+daily.review: "🔍 <b>Ждут твоего ревью: {count}</b>"
+daily.mine: "🛠 <b>Твои MR, где ход за тобой: {count}</b>"
+daily.waiting: "⏳ Твои MR ждут ревьюеров: {count}"
+daily.footer: "Выключить сводку или сменить время — /settings"

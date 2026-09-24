@@ -42,8 +42,10 @@ help.text: |-
   <b>Commands</b>
   /inbox — where it's your move and what's unread
   /mr — all your merge requests: to review and your own
+  /my — only your own merge requests
   /accounts — connected GitLab and GitHub accounts
-  /settings — notifications, quiet hours, language, time zone
+  /settings — notifications, daily summary, quiet hours, language, time zone
+  /lang — switch language (RU / EN)
   /start — connect another account
 ev.review_requested: "🔔 <b>New merge request to review</b> from {actor}"
 ev.new_comment: "💬 <b>{actor}</b> commented"
@@ -151,3 +153,15 @@ cmd.accounts: "Connected accounts"
 cmd.settings: "Settings"
 cmd.help: "Help"
 cmd.start: "Connect an account"
+cmd.my: "My merge requests"
+cmd.lang: "Language / Язык"
+lang.choose: "Choose language / Выбери язык:"
+lang.set: "🌐 Language: English. Command menu updated."
+st.digest_on: "☀️ Daily summary: {time}"
+st.digest_off: "☀️ Daily summary: off"
+st.digest_time: "🕘 Summary time"
+daily.header: "☀️ <b>Today's summary</b>"
+daily.review: "🔍 <b>Waiting for your review: {count}</b>"
+daily.mine: "🛠 <b>Your merge requests where it's your move: {count}</b>"
+daily.waiting: "⏳ Your merge requests waiting for reviewers: {count}"
+daily.footer: "Turn the summary off or change its time — /settings"

@@ -60,4 +60,9 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX events_pending ON events (tg_id, delivered_at);
     """,
+    """
+    ALTER TABLE users ADD COLUMN digest_enabled INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE users ADD COLUMN digest_time TEXT NOT NULL DEFAULT '10:00';
+    ALTER TABLE users ADD COLUMN digest_last TEXT;
+    """,
 ]

@@ -37,6 +37,9 @@ class User:
     quiet_to: str
     quiet_weekends: bool
     muted_kinds: frozenset[str]
+    digest_enabled: bool = True
+    digest_time: str = "10:00"
+    digest_last: str | None = None  # local date (YYYY-MM-DD) of the last daily summary
 
 
 @dataclass(frozen=True)
@@ -82,6 +85,7 @@ _USER_FIELDS = frozenset(
     {
         "chat_id", "username", "lang", "tz", "status", "is_admin", "poll_interval",
         "quiet_enabled", "quiet_from", "quiet_to", "quiet_weekends", "muted_kinds",
+        "digest_enabled", "digest_time", "digest_last",
     }
 )
 _ACCOUNT_FIELDS = frozenset({"synced", "last_poll_at", "last_ok_at", "last_error", "mentions_cursor"})
@@ -106,6 +110,9 @@ def _user(r) -> User:
         quiet_to=r["quiet_to"],
         quiet_weekends=bool(r["quiet_weekends"]),
         muted_kinds=frozenset(json.loads(r["muted_kinds"])),
+        digest_enabled=bool(r["digest_enabled"]),
+        digest_time=r["digest_time"],
+        digest_last=r["digest_last"],
     )
 
 

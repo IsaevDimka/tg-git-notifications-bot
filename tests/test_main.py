@@ -4,14 +4,15 @@ import time
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
 from app import health
+from app.bot.commands import COMMANDS
 from app.i18n import t
-from app.main import COMMANDS, build_app
+from app.main import build_app
 from tests.tg import make_cfg
 
 # One sample of every callback_data family the bot emits (keyboards in Tasks 8–12).
 SAMPLE_CALLBACKS = [
     "ob:gl", "ob:tz:UTC", "adm:ok:1", "a:read:1", "a:sz:1:2h", "mr:rev", "ib:all", "ib:r:0",
-    "st:k:mention", "acc:add", "acc:rm!:1",
+    "st:k:mention", "st:lg:ru", "st:dg", "acc:add", "acc:rm!:1",
 ]
 
 
@@ -56,3 +57,7 @@ def test_http_client_does_not_follow_redirects():
     from app.main import make_http
 
     assert make_http().follow_redirects is False
+
+
+def test_new_commands_present():
+    assert {"my", "lang"} <= set(COMMANDS)

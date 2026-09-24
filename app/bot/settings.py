@@ -2,12 +2,13 @@
 
 from datetime import datetime
 
-from telegram import InlineKeyboardMarkup
+from telegram import BotCommandScopeChat, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 
 from app import timeutil
 from app.bot import access, deps, onboarding
+from app.bot.commands import bot_commands
 from app.bot.keyboards import btn, connect_keyboard
 from app.core.render import clip, esc, fmt_age
 from app.i18n import t
@@ -17,6 +18,8 @@ from app.timeutil import parse_ts
 
 INTERVALS_MIN = (1, 3, 5, 10, 15)
 QUIET_PRESETS = (("22:00", "09:00"), ("23:00", "08:00"), ("20:00", "10:00"), ("00:00", "07:00"))
+DIGEST_TIMES = ("09:00", "10:00", "11:00", "12:00")
+LANGS = ("ru", "en")
 
 
 def interval_options(min_seconds: int) -> list[int]:
@@ -42,6 +45,13 @@ def apply(user: User, action: str, min_poll: int) -> dict:
         return {"quiet_weekends": not user.quiet_weekends}
     if action == "lang":
         return {"lang": "en" if user.lang == "ru" else "ru"}
+    if action.startswith("lg:") and action.removeprefix("lg:") in LANGS:
+        return {"lang": action.removeprefix("lg:")}
+    if action == "dg":
+        return {"digest_enabled": not user.digest_enabled}
+    if action == "dgt":
+        idx = DIGEST_TIMES.index(user.digest_time) if user.digest_time in DIGEST_TIMES else -1
+        return {"digest_time": DIGEST_TIMES[(idx + 1) % len(DIGEST_TIMES)], "digest_enabled": True}
     raise ValueError(f"unknown settings action {action!r}")
 
 
@@ -52,6 +62,8 @@ def settings_view(user: User) -> tuple[str, InlineKeyboardMarkup]:
     ]
     rows = [toggles[i : i + 2] for i in range(0, len(toggles), 2)]
     rows.append([btn(t(lang, "st.interval", n=user.poll_interval // 60), "st:iv")])
+    digest = t(lang, "st.digest_on", time=user.digest_time) if user.digest_enabled else t(lang, "st.digest_off")
+    rows.append([btn(digest, "st:dg"), btn(t(lang, "st.digest_time"), "st:dgt")])
     quiet = (
         t(lang, "st.quiet_on", start=user.quiet_from, end=user.quiet_to)
         if user.quiet_enabled
@@ -118,8 +130,22 @@ async def cb_settings(update, ctx) -> None:
         return
     st = deps.store(ctx)
     await st.update_user(user.tg_id, **apply(user, action, deps.cfg(ctx).min_poll_interval))
-    text, markup = settings_view(await st.get_user(user.tg_id))
+    fresh = await st.get_user(user.tg_id)
+    if fresh.lang != user.lang:  # make the command menu in this chat follow the chosen language
+        await ctx.bot.set_my_commands(bot_commands(fresh.lang), scope=BotCommandScopeChat(fresh.chat_id))
+    if action.startswith("lg:"):
+        await _edit(q, t(fresh.lang, "lang.set"), None)
+        return
+    text, markup = settings_view(fresh)
     await _edit(q, text, markup)
+
+
+async def cmd_lang(update, ctx) -> None:
+    user = await access.current_user(update, ctx)
+    if user is None:
+        return
+    markup = InlineKeyboardMarkup([[btn("🇷🇺 Русский", "st:lg:ru"), btn("🇬🇧 English", "st:lg:en")]])
+    await update.effective_chat.send_message(t(user.lang, "lang.choose"), reply_markup=markup)
 
 
 async def cmd_accounts(update, ctx) -> None:

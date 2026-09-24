@@ -122,3 +122,41 @@ async def test_cmd_accounts_lists(store):
     upd = message_update("/accounts", lang="en")
     await settings.cmd_accounts(upd, ctx)
     assert "github.com" in texts(upd.effective_chat.send_message)[0]
+
+
+async def test_apply_digest_and_language(store):
+    user = await make_user(store)
+    assert settings.apply(user, "dg", 60) == {"digest_enabled": False}
+    assert settings.apply(user, "dgt", 60) == {"digest_time": "11:00", "digest_enabled": True}
+    assert settings.apply(replace(user, digest_time="12:00"), "dgt", 60)["digest_time"] == "09:00"
+    assert settings.apply(user, "lg:ru", 60) == {"lang": "ru"}
+    with pytest.raises(ValueError):
+        settings.apply(user, "lg:de", 60)
+
+
+async def test_settings_view_has_digest_controls(store):
+    user = await make_user(store)
+    _, markup = settings.settings_view(user)
+    assert "st:dg" in callbacks(markup) and "st:dgt" in callbacks(markup)
+    labels = [b.text for row in markup.inline_keyboard for b in row]
+    assert "☀️ Daily summary: 10:00" in labels
+
+
+async def test_cmd_lang_offers_both_languages(store):
+    await make_user(store)
+    ctx = make_ctx(store)
+    upd = message_update("/lang", lang="en")
+    await settings.cmd_lang(upd, ctx)
+    assert callbacks(upd.effective_chat.send_message.await_args.kwargs["reply_markup"]) == ["st:lg:ru", "st:lg:en"]
+
+
+async def test_choosing_language_switches_texts_and_menu(store):
+    await make_user(store)
+    ctx = make_ctx(store)
+    upd = callback_update("st:lg:ru", lang="en")
+    await settings.cb_settings(upd, ctx)
+    assert (await store.get_user(1)).lang == "ru"
+    assert "Русский" in upd.callback_query.edit_message_text.await_args.args[0]
+    call = ctx.bot.set_my_commands.await_args
+    assert call.kwargs["scope"].chat_id == 1
+    assert any(c.command == "my" for c in call.args[0])

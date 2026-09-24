@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 import httpx
-from telegram import BotCommand, Update
+from telegram import Update
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -16,12 +16,13 @@ from telegram.ext import (
 
 from app import timeutil
 from app.bot import access, actions, inputs, onboarding, settings, views
+from app.bot.commands import bot_commands
+from app.bot.daily import send_daily
 from app.config import Config, ensure_writable, load_config
 from app.core.delivery import deliver_all
 from app.core.poller import poll_due
 from app.crypto import TokenBox
 from app.health import beat
-from app.i18n import t
 from app.logs import setup_logging
 from app.providers import make_provider
 from app.storage.store import Store
@@ -29,13 +30,14 @@ from app.storage.store import Store
 log = logging.getLogger("app")
 POLL_TICK = 15
 DELIVERY_TICK = 20
-COMMANDS = ("inbox", "mr", "accounts", "settings", "help", "start")
 COMMAND_HANDLERS = (
     ("start", onboarding.cmd_start),
     ("help", onboarding.cmd_help),
     ("mr", views.cmd_mr),
+    ("my", views.cmd_my),
     ("inbox", views.cmd_inbox),
     ("settings", settings.cmd_settings),
+    ("lang", settings.cmd_lang),
     ("accounts", settings.cmd_accounts),
 )
 CALLBACKS = (
@@ -50,8 +52,8 @@ CALLBACKS = (
 
 
 async def set_commands(bot) -> None:
-    await bot.set_my_commands([BotCommand(c, t("en", f"cmd.{c}")) for c in COMMANDS])
-    await bot.set_my_commands([BotCommand(c, t("ru", f"cmd.{c}")) for c in COMMANDS], language_code="ru")
+    await bot.set_my_commands(bot_commands("en"))
+    await bot.set_my_commands(bot_commands("ru"), language_code="ru")
 
 
 async def _poll_loop(app: Application) -> None:
@@ -71,6 +73,7 @@ async def _delivery_loop(app: Application) -> None:
     while True:
         try:
             await deliver_all(app.bot, store, timeutil.now())
+            await send_daily(app.bot, store, timeutil.now())
         except Exception:
             log.exception("delivery cycle failed")
         await asyncio.sleep(DELIVERY_TICK)

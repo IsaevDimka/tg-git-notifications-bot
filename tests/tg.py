@@ -25,6 +25,7 @@ def make_cfg(**overrides) -> Config:
 def make_ctx(store, provider=None, cfg: Config | None = None):
     bot = MagicMock()
     bot.send_message = AsyncMock()
+    bot.set_my_commands = AsyncMock()
     return SimpleNamespace(
         bot=bot,
         user_data={},

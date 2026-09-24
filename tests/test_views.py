@@ -107,3 +107,15 @@ async def test_cb_inbox_stale_index_is_harmless(store):
     await _setup(store)
     ctx = make_ctx(store)
     await views.cb_inbox(callback_update("ib:r:5", lang="en"), ctx)
+
+
+async def test_cmd_my_opens_own_tab(store):
+    acc = await _setup(store)
+    await store.put_watched(watched(8, role=Role.AUTHOR, author="me", account_id=acc.id))
+    await store.put_watched(watched(9, account_id=acc.id))
+    ctx = make_ctx(store)
+    upd = message_update("/my", lang="en")
+    await views.cmd_my(upd, ctx)
+    call = upd.effective_chat.send_message.await_args
+    assert "!8" in call.args[0] and "!9" not in call.args[0]
+    assert call.kwargs["reply_markup"].inline_keyboard[0][1].text.startswith("• ")

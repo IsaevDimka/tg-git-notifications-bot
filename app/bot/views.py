@@ -111,6 +111,16 @@ async def cmd_mr(update, ctx) -> None:
     )
 
 
+async def cmd_my(update, ctx) -> None:
+    user = await access.current_user(update, ctx)
+    if user is None:
+        return
+    text, markup = await _mr_view(ctx, user, "own")
+    await update.effective_chat.send_message(
+        text, parse_mode=ParseMode.HTML, reply_markup=markup, link_preview_options=NO_PREVIEW
+    )
+
+
 async def cb_mr(update, ctx) -> None:
     q = update.callback_query
     await q.answer()

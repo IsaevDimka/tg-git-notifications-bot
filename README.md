@@ -11,6 +11,7 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 - Reply, resolve, approve and snooze **right from Telegram**
 - `/inbox` shows only the merge requests where it's your move; `/mr` shows everything
 - Quiet hours and weekends: events wait and arrive as one morning digest
+- Daily summary at your chosen time (can be turned off)
 - Multi-user: one deployment serves your whole team; everyone connects their own token
 - One container, SQLite, no public URL needed (long polling). Russian and English UI.
 
@@ -59,8 +60,10 @@ Back up `DATA_DIR` as a whole: without `secret.key` the stored tokens can't be d
 | `/start` | Connect a GitLab or GitHub account |
 | `/inbox` | Merge requests where it's your move, with unread counts |
 | `/mr` | Everything you review and everything you authored |
+| `/my` | Only your own merge requests |
+| `/lang` | Switch language (RU / EN) |
 | `/accounts` | Connected accounts, their status; disconnect |
-| `/settings` | Notification types, check interval, quiet hours, language, time zone |
+| `/settings` | Notification types, daily summary on/off and time, check interval, quiet hours, language, time zone |
 | `/help` | Command list |
 
 ## How “your move” is decided

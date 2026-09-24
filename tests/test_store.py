@@ -135,3 +135,11 @@ async def test_due_accounts_respects_interval_and_status(store):
     await store.update_account(acc.id, last_poll_at=iso(NOW))
     assert await store.due_accounts(NOW + timedelta(seconds=179)) == []
     assert [a.id for a in await store.due_accounts(NOW + timedelta(seconds=180))] == [acc.id]
+
+
+async def test_digest_defaults_and_update(store):
+    user = await _user(store, 1)
+    assert user.digest_enabled and user.digest_time == "10:00" and user.digest_last is None
+    await store.update_user(1, digest_enabled=False, digest_time="09:00", digest_last="2026-09-24")
+    user = await store.get_user(1)
+    assert (user.digest_enabled, user.digest_time, user.digest_last) == (False, "09:00", "2026-09-24")
