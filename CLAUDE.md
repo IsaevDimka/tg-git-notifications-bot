@@ -13,3 +13,8 @@ Spec: `docs/specs/2026-09-24-design.md`. Plan: `docs/plans/2026-09-24-v0.1-mvp.m
 ## Commands
 - `uv sync` · `uv run pytest -q` · `uv run ruff check .`
 - Local run: `set -a; source .env; set +a; uv run python -m app`
+
+## Deploy
+- Image: `ghcr.io/isaevdimka/tg-git-notifications-bot` (built by `.github/workflows/release.yml` on `v*` tags).
+- Target server (TODO D1): `do-ams3-claude-01` / 188.166.91.129, next to tg-claude-bot.
+- Backlog: `TODO.md`.

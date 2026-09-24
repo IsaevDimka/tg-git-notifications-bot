@@ -1,0 +1,15 @@
+services:
+  - type: worker
+    name: tg-git-notifications-bot
+    runtime: image
+    image:
+      url: ghcr.io/isaevdimka/tg-git-notifications-bot:latest
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: DATA_DIR
+        value: /data
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
