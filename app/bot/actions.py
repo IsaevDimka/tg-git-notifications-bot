@@ -74,6 +74,11 @@ async def cb_action(update, ctx) -> None:
         await q.answer(t(lang, "act.read"))
         await q.edit_message_reply_markup(reply_markup=None)
         return
+    if act == "ri":  # "read" under a grouped message: everything unread on that MR
+        await st.mark_item_read(user.tg_id, ev.item_key, now)
+        await q.answer(t(lang, "act.read"))
+        await q.edit_message_reply_markup(reply_markup=None)
+        return
     if act == "x":
         await q.answer()
         await q.edit_message_reply_markup(reply_markup=keyboard(ev, event_id, lang))

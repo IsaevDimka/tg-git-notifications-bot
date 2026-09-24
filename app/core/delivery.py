@@ -7,8 +7,8 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden, NetworkError, RetryAfter
 
 from app.core.quiet import is_quiet
-from app.core.render import NO_PREVIEW, render, render_digest
-from app.storage.store import Store, User
+from app.core.render import BURST_MIN, NO_PREVIEW, burst_kinds, render, render_burst, render_digest
+from app.storage.store import Store, StoredEvent, User
 
 log = logging.getLogger(__name__)
 DIGEST_AFTER = timedelta(minutes=10)
@@ -21,6 +21,23 @@ async def _send(bot, chat_id: int, text: str, markup=None) -> None:
         )
     except BadRequest as err:  # permanent for this message — drop it, keep the queue moving
         log.warning("Telegram rejected a message for chat %s: %s", chat_id, err)
+
+
+def _bursts(live: list[StoredEvent]) -> list[list[StoredEvent]]:
+    """Group comments by (MR, author); groups of BURST_MIN+ become one message, the rest stay single."""
+    kinds = burst_kinds()
+    groups: dict[tuple, list[StoredEvent]] = {}
+    for e in live:
+        ev = e.event
+        key = (ev.item_key, ev.actor) if ev.item and ev.kind in kinds else ("single", e.id)
+        groups.setdefault(key, []).append(e)
+    out: list[list[StoredEvent]] = []
+    for key, group in groups.items():
+        if key[0] != "single" and len(group) >= BURST_MIN:
+            out.append(group)
+        else:
+            out += [[e] for e in group]
+    return out
 
 
 async def deliver_user(bot, store: Store, user: User, now: datetime) -> int:
@@ -40,10 +57,13 @@ async def deliver_user(bot, store: Store, user: User, now: datetime) -> int:
             sent += 1
             batched = {e.id for e in waited}
             live = [e for e in live if e.id not in batched]
-        for e in live:
-            text, markup = render(e.event, e.id, user.lang, now)
+        for group in _bursts(live):
+            if len(group) == 1:
+                text, markup = render(group[0].event, group[0].id, user.lang, now)
+            else:
+                text, markup = render_burst([e.event for e in group], group[-1].id, user.lang)
             await _send(bot, user.chat_id, text, markup)
-            await store.mark_delivered([e.id], now)
+            await store.mark_delivered([e.id for e in group], now)
             sent += 1
     except Forbidden:
         log.info("user %s blocked the bot", user.tg_id)

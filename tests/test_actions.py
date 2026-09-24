@@ -121,3 +121,14 @@ async def test_snooze_flow(store):
     await actions.cb_action(callback_update(f"a:sz:{ids['comment']}:2h", lang="en"), ctx)
     ev = await store.get_event(ids["comment"], 1)
     assert ev.delivered_at is None and ev.snoozed_until is not None
+
+
+async def test_read_item_marks_every_event_of_that_mr(store):
+    ctx, _, ids = await setup(store)
+    acc = (await store.accounts_for(1))[0]
+    extra = await store.add_event(1, acc.id, Event(Kind.NEW_COMMENT, dedup="x", item=item(Role.REVIEWER, 42),
+                                                   actor="bob", note=note(5, "bob")), NOW)
+    await actions.cb_action(callback_update(f"a:ri:{extra}", lang="en"), ctx)
+    assert (await store.get_event(ids["comment"], 1)).read_at is not None
+    assert (await store.get_event(extra, 1)).read_at is not None
+    assert (await store.get_event(ids["review"], 1)).read_at is None

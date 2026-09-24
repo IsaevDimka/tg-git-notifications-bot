@@ -127,3 +127,40 @@ async def test_one_users_failure_does_not_stop_others(store):
     bot = FakeBot(fail_chat={100: RuntimeError("boom")})
     await deliver_all(bot, store, NOW)
     assert [chat for chat, _, _ in bot.sent] == [200]
+
+
+def by(actor, i, kind=Kind.NEW_COMMENT, iid=1, body=None):
+    return Event(kind, dedup=f"{actor}{i}", item=item(iid=iid), actor=actor,
+                 note=note(i, actor, body or f"comment {i}"), thread_id=f"t{i}")
+
+
+async def test_burst_from_one_person_is_one_message(store):
+    acc, user = await setup(store)
+    for i in range(1, 5):
+        await store.add_event(1, acc.id, by("alice", i, Kind.REPLY_TO_ME if i == 2 else Kind.NEW_COMMENT), NOW)
+    await store.add_event(1, acc.id, by("bob", 9), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 2
+    burst, single = bot.sent[0][1], bot.sent[1][1]
+    assert "@alice" in burst and "4" in burst and "replies to you: 1" in burst
+    assert "comment 1" in burst and "comment 3" in burst and "comment 4" not in burst
+    assert "@bob" in single
+    assert await store.pending_events(1, NOW) == []
+
+
+async def test_two_comments_are_not_a_burst(store):
+    acc, user = await setup(store)
+    await store.add_event(1, acc.id, by("alice", 1), NOW)
+    await store.add_event(1, acc.id, by("alice", 2), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 2
+
+
+async def test_burst_is_per_merge_request(store):
+    acc, user = await setup(store)
+    for i in range(1, 4):
+        await store.add_event(1, acc.id, by("alice", i, iid=1), NOW)
+    for i in range(4, 6):
+        await store.add_event(1, acc.id, by("alice", i, iid=2), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 3
