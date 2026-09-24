@@ -12,7 +12,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 - MRs labelled `blocker` / `hotfix` (configurable: `URGENT_LABELS`) notify even during quiet hours.
 - Noise filters: bot accounts (renovate, dependabot, `*[bot]`, GitLab project/group bots) and drafts you review are quiet by default (toggles in `/settings`); `/mute` silences whole projects in notifications, lists and the daily summary.
 - 3+ comments from one person on one MR in one go (e.g. a submitted review) arrive as one message with the first quotes and a single "✓ Read".
-- "⏰ Waiting for your review for N": a daily reminder once an MR has been your move for 2+ days (max 5 reminders per check, stops after 30 days; the same 30-day stop now applies to "waiting for reviewers").
+- "⏰ Waiting for your review for N": a daily reminder once an MR has been your move for 2+ days — only when the morning summary is off (the summary already lists them); max 5 per check, stops after 30 days (the same 30-day stop now applies to "waiting for reviewers").
+- Review requests on draft MRs are announced when the draft becomes ready.
 - "🔁 New commits after your review": when the author pushes after you requested changes or commented, it's your move again — no re-request click needed. (A rebase triggers it too.)
 - One-time "token stopped working" notice when an account's token is rejected.
 

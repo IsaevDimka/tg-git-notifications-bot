@@ -189,3 +189,24 @@ async def test_urgent_labels_break_through_quiet_hours(store):
     assert await deliver_user(bot, store, user, NOW, urgent_labels=frozenset({"hotfix"})) == 1
     assert "prod is down" in bot.sent[0][1]
     assert len(await store.pending_events(1, NOW)) == 1  # the normal one waits for morning
+
+
+async def test_reminders_do_not_break_quiet_hours_even_when_urgent(store):
+    acc, user = await setup(store, quiet_from="11:00", quiet_to="13:00")
+    urgent_item = item(iid=3, labels=("hotfix",))
+    await store.add_event(1, acc.id, Event(Kind.STALE_REVIEW, dedup="s", item=urgent_item, actor="alice",
+                                           since=NOW - timedelta(days=3)), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW, urgent_labels=frozenset({"hotfix"})) == 0
+
+
+async def test_stale_review_reminders_skip_when_morning_summary_covers_them(store):
+    acc, user = await setup(store)
+    stale = Event(Kind.STALE_REVIEW, dedup="s", item=item(iid=3), actor="alice", since=NOW - timedelta(days=3))
+    await store.add_event(1, acc.id, stale, NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, user, NOW) == 0  # digest on by default
+    await store.update_user(1, digest_enabled=False)
+    await store.add_event(1, acc.id, Event(Kind.STALE_REVIEW, dedup="s2", item=item(iid=4), actor="alice",
+                                           since=NOW - timedelta(days=3)), NOW)
+    assert await deliver_user(bot, store, await store.get_user(1), NOW) == 1

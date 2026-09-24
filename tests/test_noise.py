@@ -38,3 +38,12 @@ def test_noise_rules():
     assert is_noise(replace(USER, muted_projects=frozenset({"g/app"})), comment())
     assert not is_noise(USER, comment())
     assert not is_noise(USER, Event(Kind.TOKEN_BROKEN, dedup="t", title="gitlab.example.com"))
+
+
+def test_bot_filter_keeps_review_tasks_and_draft_filter_keeps_replies():
+    rr = Event(Kind.REVIEW_REQUESTED, dedup="r", item=item(author="renovate"), actor="renovate")
+    assert not is_noise(USER, rr)
+    stale = Event(Kind.STALE_REVIEW, dedup="s", item=item(author="dependabot[bot]"), actor="dependabot[bot]")
+    assert not is_noise(USER, stale)
+    reply_on_draft = Event(Kind.REPLY_TO_ME, dedup="d", item=item(draft=True), actor="alice", note=note(1, "alice"))
+    assert not is_noise(USER, reply_on_draft)

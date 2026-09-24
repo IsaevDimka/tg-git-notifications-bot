@@ -126,7 +126,12 @@ def rereview_state(old: dict, d: Details, item: ReviewItem, me: str, now: dateti
         since = None
     old_sha = old.get("head_sha")
     reviewed = me in d.changes_requested_by or bool(my_notes)
-    if reviewed and old_sha and d.head_sha and d.head_sha != old_sha:
-        event = Event(Kind.REREVIEW, dedup=f"rerev:{item.key}:{d.head_sha}", item=item, actor=item.author)
-        return [event], iso(now)
-    return [], since
+    if not (reviewed and old_sha and d.head_sha and d.head_sha != old_sha):
+        return [], since
+    if since:  # already waiting for me — one notice per round, not one per push
+        return [], since
+    checked = old.get("refreshed_at")
+    if checked and any(n.created_at > parse_ts(checked) for n in my_notes):
+        return [], None  # I commented after the push but before this poll — I've already looked
+    event = Event(Kind.REREVIEW, dedup=f"rerev:{item.key}:{d.head_sha}", item=item, actor=item.author)
+    return [event], iso(now)

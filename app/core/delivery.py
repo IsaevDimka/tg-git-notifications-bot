@@ -9,6 +9,7 @@ from telegram.error import BadRequest, Forbidden, NetworkError, RetryAfter
 from app.core.noise import is_noise
 from app.core.quiet import is_quiet
 from app.core.render import BURST_MIN, NO_PREVIEW, burst_kinds, render, render_burst, render_digest
+from app.models import Kind
 from app.storage.store import Store, StoredEvent, User
 
 log = logging.getLogger(__name__)
@@ -41,8 +42,20 @@ def _bursts(live: list[StoredEvent]) -> list[list[StoredEvent]]:
     return out
 
 
+# Live activity may break quiet hours on urgent MRs; reminders and summaries never do.
+URGENT_KINDS = frozenset({
+    Kind.REVIEW_REQUESTED, Kind.REREVIEW, Kind.REPLY_TO_ME, Kind.MENTION, Kind.NEW_COMMENT, Kind.PING,
+    Kind.CHANGES_REQUESTED, Kind.CONFLICT,
+})
+
+
 def _urgent(ev, urgent_labels: frozenset[str]) -> bool:
-    return bool(ev.item and urgent_labels & {label.lower() for label in ev.item.labels})
+    return ev.kind in URGENT_KINDS and bool(ev.item and urgent_labels & {label.lower() for label in ev.item.labels})
+
+
+def _redundant(user: User, ev) -> bool:
+    """The morning summary already lists reviews waiting on me — don't also nag MR by MR."""
+    return ev.kind is Kind.STALE_REVIEW and user.digest_enabled
 
 
 async def deliver_user(bot, store: Store, user: User, now: datetime, urgent_labels: frozenset[str] = frozenset()) -> int:
@@ -53,7 +66,11 @@ async def deliver_user(bot, store: Store, user: User, now: datetime, urgent_labe
     muted = [e.id for e in pending if e.event.kind in user.muted_kinds]
     if muted:
         await store.mark_delivered(muted, now)
-    noise = [e.id for e in pending if e.event.kind not in user.muted_kinds and is_noise(user, e.event)]
+    noise = [
+        e.id
+        for e in pending
+        if e.event.kind not in user.muted_kinds and (is_noise(user, e.event) or _redundant(user, e.event))
+    ]
     if noise:  # swallowed quietly and kept out of unread counts
         await store.mark_delivered(noise, now)
         await store.mark_read(noise, now)

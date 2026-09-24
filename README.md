@@ -8,7 +8,7 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 - 💬 New comments on merge requests you review or own · 📣 @mentions
 - ✅ Approvals, 🔄 change requests, ⚠️ conflicts, 🎉 merged / closed on your own merge requests
 - ⏳ Your merge request has waited 24 h+ for reviewers → one tap posts a friendly reminder
-- ⏰ An MR has waited for *your* review 2+ days → a daily nudge (stops after 30 days)
+- ⏰ An MR has waited for *your* review 2+ days → a daily nudge if the morning summary is off (stops after 30 days)
 - 🔑 Your token stopped working → you're told once, instead of the bot going silent
 - Reply, resolve, approve and snooze **right from Telegram**
 - `/inbox` shows only the merge requests where it's your move; `/mr` shows everything

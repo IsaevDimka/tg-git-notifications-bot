@@ -86,7 +86,8 @@ async def _poll_item(
     events: list[Event] = []
     if old is None:
         since = item.updated_at
-        if account.synced and item.role is Role.REVIEWER and not _already_reviewed(d, me):
+        # a draft isn't ready for review yet: the request is announced when it leaves draft (below)
+        if account.synced and item.role is Role.REVIEWER and not item.draft and not _already_reviewed(d, me):
             events.append(Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}", item=item, actor=item.author))
         rereview_since = None
     else:
@@ -96,6 +97,9 @@ async def _poll_item(
         since = old.ball_since if ball == old.ball else item.updated_at
         if account.synced:
             events += diff(old.snapshot, d, item, me) + rerev_events
+            became_ready = old.item.draft and not item.draft
+            if became_ready and item.role is Role.REVIEWER and not _already_reviewed(d, me):
+                events.append(Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}:ready", item=item, actor=item.author))
     snap = {
         **snapshot(d),
         "refreshed_at": iso(now),

@@ -403,3 +403,49 @@ async def test_poll_one_stores_rate_limit(store):
     p.rate_remaining = 321
     await poll_one(store, p, acc, NOW)
     assert (await store.get_account(acc.id)).rate_remaining == 321
+
+
+async def test_review_request_on_a_draft_arrives_when_it_is_ready(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    draft = item(Role.REVIEWER, 1, draft=True)
+    p.items = [draft]
+    p.details_by_key[draft.key] = details()
+    await poll_account(p, store, acc, NOW)
+    assert await events(store) == []
+    ready = replace(draft, draft=False, updated_at=draft.updated_at + timedelta(hours=1))
+    p.items = [ready]
+    await poll_account(p, store, acc, NOW + timedelta(hours=1))
+    [ev] = await events(store)
+    assert ev.kind is Kind.REVIEW_REQUESTED and ev.item.iid == 1
+
+
+async def test_rereview_is_announced_once_for_several_pushes(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1)
+    my_note = thread("t", note(1, "me", "please fix", at="2026-09-24T09:00:00Z"))
+    p.items = [mr]
+    p.details_by_key[mr.key] = details(my_note, cr=["me"], head_sha="a")
+    await poll_account(p, store, acc, NOW)
+    for i, sha in enumerate(("b", "c", "d"), start=1):
+        p.items = [replace(mr, updated_at=mr.updated_at + timedelta(hours=i))]
+        p.details_by_key[mr.key] = details(my_note, cr=["me"], head_sha=sha)
+        await poll_account(p, store, acc, NOW + timedelta(hours=i))
+    assert [e.kind for e in await events(store)] == [Kind.REREVIEW]
+    assert (await store.get_watched(acc.id, mr.key)).ball is Ball.ME
+
+
+async def test_no_rereview_if_i_already_commented_after_the_push(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1)
+    p.items = [mr]
+    p.details_by_key[mr.key] = details(thread("t", note(1, "me", "fix", at="2026-09-24T09:00:00Z")), cr=["me"], head_sha="a")
+    await poll_account(p, store, acc, NOW)
+    p.items = [replace(mr, updated_at=mr.updated_at + timedelta(hours=1))]
+    fresh_note = note(2, "me", "looked again, fine", at="2026-09-24T12:30:00Z")  # after last check, before this poll
+    p.details_by_key[mr.key] = details(thread("t", note(1, "me", "fix", at="2026-09-24T09:00:00Z"), fresh_note),
+                                       cr=["me"], head_sha="b")
+    await poll_account(p, store, acc, NOW + timedelta(hours=1))
+    assert Kind.REREVIEW not in [e.kind for e in await events(store)]
