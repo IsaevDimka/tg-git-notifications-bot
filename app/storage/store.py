@@ -40,6 +40,9 @@ class User:
     digest_enabled: bool = True
     digest_time: str = "10:00"
     digest_last: str | None = None  # local date (YYYY-MM-DD) of the last daily summary
+    mute_bots: bool = True
+    mute_drafts: bool = True  # events on drafts I'm reviewing wait until the draft is ready
+    muted_projects: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -85,7 +88,7 @@ _USER_FIELDS = frozenset(
     {
         "chat_id", "username", "lang", "tz", "status", "is_admin", "poll_interval",
         "quiet_enabled", "quiet_from", "quiet_to", "quiet_weekends", "muted_kinds",
-        "digest_enabled", "digest_time", "digest_last",
+        "digest_enabled", "digest_time", "digest_last", "mute_bots", "mute_drafts", "muted_projects",
     }
 )
 _ACCOUNT_FIELDS = frozenset({"synced", "last_poll_at", "last_ok_at", "last_error", "mentions_cursor"})
@@ -113,6 +116,9 @@ def _user(r) -> User:
         digest_enabled=bool(r["digest_enabled"]),
         digest_time=r["digest_time"],
         digest_last=r["digest_last"],
+        mute_bots=bool(r["mute_bots"]),
+        mute_drafts=bool(r["mute_drafts"]),
+        muted_projects=frozenset(json.loads(r["muted_projects"])),
     )
 
 
@@ -237,8 +243,9 @@ class Store:
         unknown = set(fields) - _USER_FIELDS
         if unknown:
             raise ValueError(f"unknown user fields: {sorted(unknown)}")
-        if "muted_kinds" in fields:
-            fields["muted_kinds"] = json.dumps(sorted(fields["muted_kinds"]))
+        for name in ("muted_kinds", "muted_projects"):
+            if name in fields:
+                fields[name] = json.dumps(sorted(fields[name]))
         cols = ", ".join(f"{name} = ?" for name in fields)
         await self._write(f"UPDATE users SET {cols} WHERE tg_id = ?", (*fields.values(), tg_id))
 

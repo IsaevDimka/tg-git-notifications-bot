@@ -38,6 +38,7 @@ COMMAND_HANDLERS = (
     ("inbox", views.cmd_inbox),
     ("settings", settings.cmd_settings),
     ("lang", settings.cmd_lang),
+    ("mute", settings.cmd_mute),
     ("accounts", settings.cmd_accounts),
 )
 CALLBACKS = (

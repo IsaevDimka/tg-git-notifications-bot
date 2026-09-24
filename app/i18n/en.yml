@@ -43,6 +43,7 @@ help.text: |-
   /inbox — where it's your move and what's unread
   /mr — all your merge requests: to review and your own
   /my — only your own merge requests (author or assignee)
+  /mute — mute a noisy project
   /accounts — connected GitLab and GitHub accounts
   /settings — notifications, daily summary, quiet hours, language, time zone
   /lang — switch language (RU / EN)
@@ -177,3 +178,12 @@ short.stale_review: "⏰ review overdue"
 kind.stale_review: "Reminders: MR waits for my review"
 ev.burst: "💬 <b>{actor}</b> left {count} comments"
 ev.burst_replies: "↩️ replies to you: {count}"
+cmd.mute: "Mute a project"
+st.bots_muted: "🤖 Bots: hidden"
+st.bots_shown: "🤖 Bots: shown"
+st.drafts_muted: "📝 Drafts I review: quiet"
+st.drafts_shown: "📝 Drafts I review: notify"
+mute.header: "🔕 <b>Projects</b>\nTap to mute a project or bring its notifications back."
+mute.empty: "No projects yet — they appear after the first check."
+mute.done: "🔕 {project} is muted."
+mute.undone: "🔔 {project} is back on."

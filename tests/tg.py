@@ -28,6 +28,7 @@ def make_ctx(store, provider=None, cfg: Config | None = None):
     bot.set_my_commands = AsyncMock()
     return SimpleNamespace(
         bot=bot,
+        args=[],
         user_data={},
         bot_data={
             "store": store,

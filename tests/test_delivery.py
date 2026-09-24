@@ -164,3 +164,16 @@ async def test_burst_is_per_merge_request(store):
         await store.add_event(1, acc.id, by("alice", i, iid=2), NOW)
     bot = FakeBot()
     assert await deliver_user(bot, store, user, NOW) == 3
+
+
+async def test_noise_is_swallowed_and_marked_read(store):
+    acc, user = await setup(store, muted_projects=frozenset({"g/other"}))
+    await store.add_event(1, acc.id, by("renovate", 1), NOW)
+    await store.add_event(1, acc.id, Event(Kind.NEW_COMMENT, dedup="dr", item=item(iid=5, draft=True),
+                                           actor="alice", note=note(5, "alice")), NOW)
+    await store.add_event(1, acc.id, by("alice", 7), NOW)
+    bot = FakeBot()
+    assert await deliver_user(bot, store, await store.get_user(1), NOW) == 1
+    assert "@alice" in bot.sent[0][1]
+    assert await store.pending_events(1, NOW) == []
+    assert await store.unread_counts(1) == {item(iid=1).key: 1}

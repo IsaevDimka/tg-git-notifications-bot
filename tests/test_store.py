@@ -143,3 +143,11 @@ async def test_digest_defaults_and_update(store):
     await store.update_user(1, digest_enabled=False, digest_time="09:00", digest_last="2026-09-24")
     user = await store.get_user(1)
     assert (user.digest_enabled, user.digest_time, user.digest_last) == (False, "09:00", "2026-09-24")
+
+
+async def test_noise_settings_defaults_and_update(store):
+    user = await _user(store, 1)
+    assert user.mute_bots and user.mute_drafts and user.muted_projects == frozenset()
+    await store.update_user(1, mute_bots=False, muted_projects=frozenset({"g/app"}))
+    user = await store.get_user(1)
+    assert not user.mute_bots and user.muted_projects == frozenset({"g/app"})

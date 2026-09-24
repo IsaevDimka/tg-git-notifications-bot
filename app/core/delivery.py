@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden, NetworkError, RetryAfter
 
+from app.core.noise import is_noise
 from app.core.quiet import is_quiet
 from app.core.render import BURST_MIN, NO_PREVIEW, burst_kinds, render, render_burst, render_digest
 from app.storage.store import Store, StoredEvent, User
@@ -47,7 +48,12 @@ async def deliver_user(bot, store: Store, user: User, now: datetime) -> int:
     muted = [e.id for e in pending if e.event.kind in user.muted_kinds]
     if muted:
         await store.mark_delivered(muted, now)
-    live = [e for e in pending if e.event.kind not in user.muted_kinds]
+    noise = [e.id for e in pending if e.event.kind not in user.muted_kinds and is_noise(user, e.event)]
+    if noise:  # swallowed quietly and kept out of unread counts
+        await store.mark_delivered(noise, now)
+        await store.mark_read(noise, now)
+    skip = set(muted) | set(noise)
+    live = [e for e in pending if e.id not in skip]
     waited = [e for e in live if e.snoozed_until is None and now - e.created_at >= DIGEST_AFTER]
     sent = 0
     try:

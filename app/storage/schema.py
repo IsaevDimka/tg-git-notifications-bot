@@ -65,4 +65,9 @@ MIGRATIONS: list[str] = [
     ALTER TABLE users ADD COLUMN digest_time TEXT NOT NULL DEFAULT '10:00';
     ALTER TABLE users ADD COLUMN digest_last TEXT;
     """,
+    """
+    ALTER TABLE users ADD COLUMN mute_bots INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE users ADD COLUMN mute_drafts INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE users ADD COLUMN muted_projects TEXT NOT NULL DEFAULT '[]';
+    """,
 ]

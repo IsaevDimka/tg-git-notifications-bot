@@ -14,6 +14,7 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 - `/inbox` shows only the merge requests where it's your move; `/mr` shows everything
 - Quiet hours and weekends: events wait and arrive as one morning digest
 - Daily summary at your chosen time (can be turned off)
+- Quiet by default for bots (renovate, dependabot…) and drafts you review; `/mute` a whole project
 - Multi-user: one deployment serves your whole team; everyone connects their own token
 - One container, SQLite, no public URL needed (long polling). Russian and English UI.
 
@@ -75,6 +76,7 @@ Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the 
 | `/inbox` | Merge requests where it's your move, with unread counts |
 | `/mr` | Everything you review and everything you authored |
 | `/my` | Only your own merge requests |
+| `/mute` | Mute a noisy project (list with buttons, or `/mute group/project`) |
 | `/lang` | Switch language (RU / EN) |
 | `/accounts` | Connected accounts, their status; disconnect |
 | `/settings` | Notification types, daily summary on/off and time, check interval, quiet hours, language, time zone |

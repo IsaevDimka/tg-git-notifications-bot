@@ -10,6 +10,7 @@ from telegram.error import BadRequest
 from app import timeutil
 from app.bot import access, deps
 from app.bot.keyboards import btn
+from app.core.noise import visible
 from app.core.render import NO_PREVIEW, clip, esc, fmt_age
 from app.i18n import t
 from app.models import Ball, Role
@@ -104,7 +105,7 @@ async def _mr_view(ctx, user: User, tab: str):
     st = deps.store(ctx)
     if not await st.accounts_for(user.tg_id):
         return t(user.lang, "mr.no_accounts"), None
-    ws = await st.watched_for_user(user.tg_id)
+    ws = visible(user, await st.watched_for_user(user.tg_id))
     return render_mr_list(ws, tab, user.lang, timeutil.now()), mr_tabs(tab, user.lang)
 
 
@@ -141,7 +142,7 @@ async def cb_mr(update, ctx) -> None:
 async def _inbox_view(ctx, user: User):
     st = deps.store(ctx)
     text, shown, empty = render_inbox(
-        await st.watched_for_user(user.tg_id),
+        visible(user, await st.watched_for_user(user.tg_id)),
         await st.unread_counts(user.tg_id),
         await st.unread_mention_count(user.tg_id),
         user.lang,

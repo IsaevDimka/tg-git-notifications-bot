@@ -6,6 +6,7 @@ from datetime import datetime, time
 from telegram.constants import ParseMode
 
 from app.bot.views import mr_line
+from app.core.noise import visible
 from app.core.quiet import is_quiet, user_zone
 from app.core.render import NO_PREVIEW
 from app.i18n import t
@@ -57,7 +58,7 @@ async def send_daily(bot, store: Store, now: datetime) -> int:
         if today is None:
             continue
         try:
-            text = render_daily(await store.watched_for_user(user.tg_id), user.lang, now)
+            text = render_daily(visible(user, await store.watched_for_user(user.tg_id)), user.lang, now)
             if text:
                 await bot.send_message(user.chat_id, text, parse_mode=ParseMode.HTML, link_preview_options=NO_PREVIEW)
                 sent += 1

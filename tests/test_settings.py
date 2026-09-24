@@ -160,3 +160,32 @@ async def test_choosing_language_switches_texts_and_menu(store):
     call = ctx.bot.set_my_commands.await_args
     assert call.kwargs["scope"].chat_id == 1
     assert any(c.command == "my" for c in call.args[0])
+
+
+async def test_apply_noise_toggles(store):
+    user = await make_user(store)
+    assert settings.apply(user, "mb", 60) == {"mute_bots": False}
+    assert settings.apply(user, "md", 60) == {"mute_drafts": False}
+    _, markup = settings.settings_view(user)
+    assert "st:mb" in callbacks(markup) and "st:md" in callbacks(markup)
+
+
+async def test_mute_lists_projects_and_toggles(store):
+    from app.models import Ball, Role
+    from app.storage.store import Watched
+    from tests.factories import item
+
+    await make_user(store)
+    acc = await store.add_account(1, "gitlab", "gitlab.example.com", "me", "s", NOW)
+    for iid, project in ((1, "g/app"), (2, "g/lib")):
+        it = replace(item(Role.REVIEWER, iid), project=project)
+        await store.put_watched(Watched(acc.id, it.key, Role.REVIEWER, it, it.updated_at, {}, Ball.ME, NOW))
+    ctx = make_ctx(store)
+    upd = message_update("/mute", lang="en")
+    await settings.cmd_mute(upd, ctx)
+    assert callbacks(upd.effective_chat.send_message.await_args.kwargs["reply_markup"]) == ["st:mp:0", "st:mp:1"]
+    await settings.cb_settings(callback_update("st:mp:1", lang="en"), ctx)
+    assert (await store.get_user(1)).muted_projects == frozenset({"g/lib"})
+    ctx.args = ["g/lib"]
+    await settings.cmd_mute(message_update("/mute g/lib", lang="en"), ctx)
+    assert (await store.get_user(1)).muted_projects == frozenset()
