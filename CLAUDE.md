@@ -12,7 +12,7 @@ Spec: `docs/specs/2026-09-24-design.md`. Plan: `docs/plans/2026-09-24-v0.1-mvp.m
 
 ## Commands
 - `make help` — all targets. Dev: `make check` (ruff + pytest), `make run` (local, ./data).
-- Server: `make up` / `logs` / `update` / `backup` (docker compose; backup via `python -m app.backup`).
+- Server: `make install` (first run, asks for the token) / `status` / `logs` / `restart` / `update` / `backup` / `down` (docker compose; backup via `python -m app.backup`).
 
 ## Deploy
 - Image: `ghcr.io/isaevdimka/tg-git-notifications-bot` (built by `.github/workflows/release.yml` on `v*` tags).

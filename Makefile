@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help deps test lint check run build up down restart logs update backup
+.PHONY: help deps test lint check run install build up down restart status logs update backup
 
 COMPOSE ?= docker compose
 TS      := $(shell date +%Y%m%d-%H%M%S)
@@ -25,6 +25,22 @@ run: .env ## Run the bot locally (reads .env, data in ./data unless DATA_DIR is 
 	set -a; . ./.env; set +a; DATA_DIR=$${DATA_DIR:-./data} uv run python -m app
 
 # --- server (docker compose) --------------------------------------------------------------
+
+install: ## First run: ask for the bot token, write .env, start the bot
+	@if [ -f .env ]; then \
+		echo ".env already exists — keeping it."; \
+	else \
+		cp .env.example .env && chmod 600 .env; \
+		printf "Telegram bot token from @BotFather: "; stty -echo 2>/dev/null; read -r token; stty echo 2>/dev/null; echo; \
+		[ -n "$$token" ] || { rm -f .env; echo "No token given — nothing changed."; exit 1; }; \
+		sed -i.bak "s|^TELEGRAM_TOKEN=.*|TELEGRAM_TOKEN=$$token|" .env && rm -f .env.bak; \
+	fi
+	$(COMPOSE) pull || $(COMPOSE) build
+	$(COMPOSE) up -d
+	@echo "Started. Open your bot in Telegram and send /start — the first user becomes admin."
+
+status: ## Show whether the bot container is running and healthy
+	$(COMPOSE) ps
 
 build: ## Build the image from source
 	$(COMPOSE) build

@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+### Added
+- `make install` (first run: asks for the bot token, writes `.env` 0600, pulls and starts) and `make status`.
+- Requirements and everyday `make` commands in both READMEs and on the website.
+
 ### Added (v0.2 quick wins)
 - "Ping" reaches colleagues who use this bot as a Telegram notice (respecting their quiet hours, once a day); others still get an MR comment. `/invite` makes a one-time 7-day link that skips admin approval.
 - Opt-in evening summary (17–20, default 18:00): merge requests where it's still your move.

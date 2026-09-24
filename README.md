@@ -22,6 +22,15 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 - Multi-user: one deployment serves your whole team; everyone connects their own token
 - One container, SQLite, no public URL needed (long polling). Russian and English UI.
 
+## Requirements
+
+- A Linux or macOS machine with **Docker** (Docker Compose v2 for the `make` commands) — amd64 or arm64 (Raspberry Pi 4/5 works)
+- ~50 MB RAM and ~300 MB disk (the image is ~250 MB, the data a few MB)
+- Outbound HTTPS to `api.telegram.org` and your GitLab / GitHub — **no inbound ports, no public URL**
+- A Telegram bot token from [@BotFather](https://t.me/BotFather)
+- For each user: a GitLab personal access token with `api` (or `read_api` for notifications only), or a GitHub **classic** token with `repo`
+- For development only: Python 3.12+ and [uv](https://docs.astral.sh/uv/)
+
 ## Quick start
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and copy its token.
@@ -47,17 +56,25 @@ It messages you when it's *your move* — so nobody has to ping you by hand.
 > Keep `/data` on a volume. At start the container hands `/data` to its unprivileged user (uid 10001) and then
 > drops root, so root-owned volumes on Fly, Railway or Render and plain bind mounts work as is.
 
-### With the Makefile (from a clone of this repo)
+### With the Makefile (recommended on a server)
 
 ```bash
 git clone https://github.com/IsaevDimka/tg-git-notifications-bot && cd tg-git-notifications-bot
-cp .env.example .env      # set TELEGRAM_TOKEN
-make up                   # start (make logs · make down · make restart)
-make update               # pull the newest image and restart
-make backup               # bot.db + secret.key → ./backups (safe while running)
+make install              # asks for the bot token, writes .env, starts the bot
 ```
 
-`make help` lists everything, including `make test` / `make run` for development.
+| Command | What it does |
+|---|---|
+| `make install` | First run: asks for the bot token, writes `.env` (0600), pulls the image and starts |
+| `make status` | Is the container running and healthy |
+| `make logs` | Follow the logs |
+| `make restart` | Restart the bot |
+| `make update` | Pull the newest image (or build from source) and restart — data is kept |
+| `make down` / `make up` | Stop / start again |
+| `make backup` | Save `bot.db` + `secret.key` to `./backups` (safe while running) |
+| `make check` · `make run` | Development: lint + tests · run locally with `./data` |
+
+`make help` lists all of them.
 
 ## Configuration
 
