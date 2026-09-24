@@ -20,6 +20,15 @@ Self-hosted Telegram-бот, который не даёт пропустить �
 - Многопользовательский: один деплой на всю команду, каждый подключает свой токен
 - Один контейнер, SQLite, без публичного адреса (long polling). Интерфейс на русском и английском.
 
+## Требования
+
+- Linux или macOS с **Docker** (для команд `make` — Docker Compose v2), amd64 или arm64 (подойдёт Raspberry Pi 4/5)
+- ~50 МБ RAM и ~300 МБ диска (образ ~250 МБ, данные — несколько МБ)
+- Исходящий HTTPS до `api.telegram.org` и твоего GitLab / GitHub — **входящие порты и публичный адрес не нужны**
+- Токен Telegram-бота от [@BotFather](https://t.me/BotFather)
+- Каждому пользователю: персональный токен GitLab со scope `api` (или `read_api` — только уведомления) либо **classic**-токен GitHub со scope `repo`
+- Только для разработки: Python 3.12+ и [uv](https://docs.astral.sh/uv/)
+
 ## Быстрый старт
 
 1. Создай бота у [@BotFather](https://t.me/BotFather) и скопируй токен.
@@ -45,17 +54,25 @@ Self-hosted Telegram-бот, который не даёт пропустить �
 > Держи `/data` на томе. При старте контейнер отдаёт `/data` своему непривилегированному пользователю (uid 10001) и
 > сбрасывает root, поэтому тома Fly, Railway и Render (они принадлежат root) и обычные папки работают без chown.
 
-### Через Makefile (из клона репозитория)
+### Через Makefile (рекомендуется на сервере)
 
 ```bash
 git clone https://github.com/IsaevDimka/tg-git-notifications-bot && cd tg-git-notifications-bot
-cp .env.example .env      # впиши TELEGRAM_TOKEN
-make up                   # запустить (make logs · make down · make restart)
-make update               # подтянуть свежий образ и перезапустить
-make backup               # bot.db + secret.key → ./backups (можно на работающем боте)
+make install              # спросит токен бота, создаст .env и запустит бота
 ```
 
-`make help` покажет все команды, включая `make test` / `make run` для разработки.
+| Команда | Что делает |
+|---|---|
+| `make install` | Первый запуск: спрашивает токен бота, пишет `.env` (0600), скачивает образ и запускает |
+| `make status` | Запущен ли контейнер и здоров ли он |
+| `make logs` | Логи в реальном времени |
+| `make restart` | Перезапустить бота |
+| `make update` | Подтянуть свежий образ (или собрать из исходников) и перезапустить — данные сохраняются |
+| `make down` / `make up` | Остановить / запустить снова |
+| `make backup` | Сохранить `bot.db` + `secret.key` в `./backups` (можно на работающем боте) |
+| `make check` · `make run` | Разработка: линтер + тесты · локальный запуск с `./data` |
+
+`make help` покажет их все.
 
 ## Настройки
 

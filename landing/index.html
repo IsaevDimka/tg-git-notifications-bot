@@ -166,6 +166,20 @@ pre.shell{margin-top:36px;background:var(--card);border:1px solid var(--line);bo
 pre.shell .c{color:var(--muted)}
 pre.shell .p{color:var(--add);user-select:none}
 
+/* requirements + make */
+.ops{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:48px;margin-top:48px}
+.ops h3{font:700 21px/1.25 var(--display);letter-spacing:-.015em;margin-bottom:14px}
+.req{list-style:none;display:grid;gap:10px}
+.req li{padding-left:22px;position:relative;color:var(--muted)}
+.req li::before{content:"✓";position:absolute;left:0;color:var(--add);font-weight:700}
+.req strong{color:var(--ink);font-weight:500}
+.req code{font-size:14px;background:var(--hl);padding:1px 5px;border-radius:4px;color:var(--ink)}
+table.make{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table.make td{padding:10px 16px;border-top:1px solid var(--line)}
+table.make tr:first-child td{border-top:0}
+table.make td:first-child{font:500 14.5px var(--mono);white-space:nowrap;width:1%}
+table.make td:last-child{color:var(--muted)}
+
 /* trust */
 .trust{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 40px;margin-top:40px}
 .trust b{display:block;font-weight:600;margin-bottom:4px}
@@ -178,7 +192,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--muted);f
 footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
 
 @media (max-width:900px){
-  .hero .wrap,.move,.groups,.trust,.steps{grid-template-columns:minmax(0,1fr)}
+  .hero .wrap,.move,.groups,.trust,.steps,.ops{grid-template-columns:minmax(0,1fr)}
   .top nav a.hide-sm{display:none}
   h1{max-width:none}
 }
@@ -383,9 +397,40 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
     -v git-notify-data:/data \
     ghcr.io/isaevdimka/tg-git-notifications-bot:latest
 
-<span class="c"># <span lang="en">or from a clone</span><span lang="ru">или из клона репозитория</span></span>
-<span class="p">$ </span>cp .env.example .env    <span class="c"># TELEGRAM_TOKEN=…</span>
-<span class="p">$ </span>make up                 <span class="c"># make logs · make update · make backup</span></pre>
+<span class="c"># <span lang="en">or on a server, with the Makefile (asks for the token, writes .env, starts)</span><span lang="ru">или на сервере через Makefile (спросит токен, создаст .env, запустит)</span></span>
+<span class="p">$ </span>git clone https://github.com/IsaevDimka/tg-git-notifications-bot && cd tg-git-notifications-bot
+<span class="p">$ </span>make install</pre>
+
+    <div class="ops">
+      <div>
+        <h3><span lang="en">Requirements</span><span lang="ru">Требования</span></h3>
+        <ul class="req" lang="en">
+          <li><strong>Docker</strong> on Linux or macOS, amd64 or arm64; Compose v2 for <code>make</code></li>
+          <li>About <strong>50 MB RAM</strong> and 300 MB disk</li>
+          <li>Outbound HTTPS to Telegram and your Git host — no inbound ports</li>
+          <li>A bot token from @BotFather</li>
+          <li>Per user: GitLab token with <code>api</code>, or GitHub classic token with <code>repo</code></li>
+        </ul>
+        <ul class="req" lang="ru">
+          <li><strong>Docker</strong> на Linux или macOS, amd64 или arm64; для <code>make</code> — Compose v2</li>
+          <li>Около <strong>50 МБ RAM</strong> и 300 МБ диска</li>
+          <li>Исходящий HTTPS до Telegram и твоего Git-хостинга — входящие порты не нужны</li>
+          <li>Токен бота от @BotFather</li>
+          <li>Каждому пользователю: токен GitLab с <code>api</code> или classic-токен GitHub с <code>repo</code></li>
+        </ul>
+      </div>
+      <div>
+        <h3><span lang="en">Everyday commands</span><span lang="ru">Команды на каждый день</span></h3>
+        <table class="make">
+          <tr><td>make status</td><td><span lang="en">Is it running and healthy</span><span lang="ru">Запущен ли и здоров ли</span></td></tr>
+          <tr><td>make logs</td><td><span lang="en">Follow the logs</span><span lang="ru">Логи в реальном времени</span></td></tr>
+          <tr><td>make restart</td><td><span lang="en">Restart the bot</span><span lang="ru">Перезапустить бота</span></td></tr>
+          <tr><td>make update</td><td><span lang="en">Newest version, data kept</span><span lang="ru">Обновиться, данные сохранятся</span></td></tr>
+          <tr><td>make backup</td><td><span lang="en">Database and key to ./backups</span><span lang="ru">База и ключ в ./backups</span></td></tr>
+          <tr><td>make down</td><td><span lang="en">Stop (make up to start again)</span><span lang="ru">Остановить (make up — запустить)</span></td></tr>
+        </table>
+      </div>
+    </div>
   </div>
 </section>
 
