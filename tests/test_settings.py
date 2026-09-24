@@ -201,3 +201,11 @@ async def test_apply_evening_summary(store):
     assert settings.apply(user, "evt", 60) == {"evening_time": "19:00", "evening_enabled": True}
     _, markup = settings.settings_view(user)
     assert "st:ev" in callbacks(markup) and "st:evt" in callbacks(markup)
+
+
+async def test_apply_team_toggles(store):
+    user = await make_user(store)
+    assert settings.apply(user, "sl", 60) == {"share_load": False}
+    assert settings.apply(user, "wk", 60) == {"weekly_enabled": True}
+    _, markup = settings.settings_view(user)
+    assert "st:sl" in callbacks(markup) and "st:wk" in callbacks(markup)

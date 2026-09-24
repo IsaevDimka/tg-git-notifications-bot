@@ -115,3 +115,26 @@ def test_evening_summary_inside_quiet_hours_still_goes_out():
 
     user = replace(USER, evening_enabled=True, evening_time="20:00", quiet_from="20:00", quiet_to="10:00")
     assert evening_due(user, datetime(2026, 9, 24, 17, 30, tzinfo=UTC)) == "2026-09-24"  # 20:30 MSK
+
+
+FRI_1730_MSK = datetime(2026, 9, 25, 14, 30, tzinfo=UTC)
+
+
+def test_weekly_report_only_on_friday_evening_when_enabled():
+    from app.bot.daily import weekly_due
+
+    on = replace(USER, weekly_enabled=True)
+    assert weekly_due(USER, FRI_1730_MSK) is None
+    assert weekly_due(on, FRI_1730_MSK) == "2026-09-25"
+    assert weekly_due(on, THU_1830_MSK) is None
+    assert weekly_due(replace(on, weekly_last="2026-09-25"), FRI_1730_MSK) is None
+
+
+async def test_send_daily_sends_the_friday_report(store):
+    await store.register_user(1, 100, "me", "en", False, 180, NOW)
+    await store.update_user(1, tz="Europe/Moscow", weekly_enabled=True, digest_enabled=False)
+    await store.add_account(1, "gitlab", "gitlab.example.com", "me", "s", NOW)
+    bot = Bot()
+    assert await send_daily(bot, store, FRI_1730_MSK) == 1
+    assert "Your week" in bot.sent[0][1]
+    assert (await store.get_user(1)).weekly_last == "2026-09-25"

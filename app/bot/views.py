@@ -36,6 +36,8 @@ def mr_line(w: Watched, lang: str, now: datetime, unread: int = 0) -> str:
         meta.append(f"👍 {approved}")
     if snap.get("open_threads"):
         meta.append(f"💬 {snap['open_threads']}")
+    if snap.get("awaiting_resolve"):
+        meta.append(f"🧵 {snap['awaiting_resolve']}")
     if ci := CI_LABEL.get(snap.get("pipeline") or ""):
         meta.append(ci)
     if unread:

@@ -96,4 +96,9 @@ MIGRATIONS: list[str] = [
         used_at TEXT
     );
     """,
+    """
+    ALTER TABLE users ADD COLUMN share_load INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE users ADD COLUMN weekly_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN weekly_last TEXT;
+    """,
 ]

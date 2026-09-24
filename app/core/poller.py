@@ -107,6 +107,10 @@ async def _poll_item(
         "refreshed_at": iso(now),
         "approved_by_me": me in d.approved_by,
         "rereview_since": rereview_since,
+        "awaiting_resolve": sum(  # my threads the other side answered: resolve them or reply
+            1 for t in d.threads
+            if t.resolvable and not t.resolved and t.notes and t.notes[0].author == me and t.notes[-1].author != me
+        ),
     }
     w = Watched(account.id, item.key, item.role, item, item.updated_at, snap, ball, since)
     return events, _reminders(w, now, account.synced), w

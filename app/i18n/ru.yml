@@ -45,6 +45,7 @@ help.text: |-
   /my — только твои MR (автор или assignee)
   /mute — заглушить шумный проект
   /watch — следить за чужим MR по ссылке
+  /load — кто сколько ревью держит; /stats — твоя статистика
   /status — работает ли бот; /test — образцы уведомлений
   /invite — пригласить коллегу (пинги будут приходить ему в Telegram)
   /accounts — подключённые GitLab и GitHub
@@ -111,7 +112,7 @@ mr.empty_review: "На твоём ревью сейчас ничего нет �
 mr.empty_own: "У тебя нет открытых MR."
 mr.no_accounts: "Нет подключённых аккаунтов — нажми /start."
 mr.more: "…и ещё {count}"
-mr.legend: "🔴 ход за тобой · ⚪ ждёшь других · ✅ с тебя ничего"
+mr.legend: "🔴 ход за тобой · ⚪ ждёшь других · ✅ с тебя ничего · 🧵 твои треды ждут резолва"
 inbox.header: "📥 <b>Ход за тобой: {count}</b>"
 inbox.empty: "📭 Сейчас с тебя ничего не ждут."
 inbox.unread: "непрочитанных: {count}"
@@ -220,3 +221,23 @@ act.pinged_dm: "Написал в Telegram: {names}"
 act.pinged_both: "Написал в Telegram: {dm}; в MR: {mr}"
 cmd.invite: "Пригласить коллегу"
 invite.link: "👥 Одноразовая ссылка-приглашение (действует 7 дней):\n{link}\n\nКоллега откроет её и попадёт в бот без одобрения админа. Когда вы оба в боте, «Пингануть» приходит друг другу в Telegram, а не комментарием в MR."
+cmd.load: "Кто сколько ревью держит"
+cmd.stats: "Моя статистика ревью"
+load.header: "📊 <b>Нагрузка ревью</b>"
+load.team: "<b>Команда в боте — сколько MR ждут их ревью:</b>"
+load.mine: "<b>Твои MR ждут ревьюеров:</b>"
+load.line: "@{name} — {count}"
+load.line_oldest: "@{name} — {count} (старейший {age})"
+load.empty: "Пока нечего показать — подключи аккаунт и дождись первого опроса."
+load.privacy: "Только числа, без названий MR. Скрыть себя из этого списка — /settings."
+stats.header: "📈 <b>Статистика ревью — последние {days} дн.</b>"
+stats.weekly_header: "📅 <b>Твоя неделя в ревью</b>"
+stats.reviews: "🔔 Запросов ревью: {requested} · повторных ревью: {rereview}"
+stats.talk: "↩️ Ответов тебе: {replies} · упоминаний: {mentions}"
+stats.mine: "🛠 Твои MR: влито {merged} · апрувов {approved} · запросов изменений {changes}"
+stats.now: "Сейчас: ждут твоего ревью: {waiting}{oldest} · твоих открытых MR: {own}, ждут ревьюеров: {pending}"
+stats.oldest: " (старейший {age})"
+st.weekly_on: "📅 Пятничный отчёт: вкл"
+st.weekly_off: "📅 Пятничный отчёт: выкл"
+st.load_shared: "📊 Моя нагрузка в /load: видна"
+st.load_hidden: "📊 Моя нагрузка в /load: скрыта"

@@ -144,3 +144,8 @@ async def test_muted_project_is_hidden_from_lists(store):
     await views.cmd_mr(upd, ctx)
     text = upd.effective_chat.send_message.await_args.args[0]
     assert "!7" in text and "!8" not in text
+
+
+def test_mr_line_shows_threads_waiting_for_my_resolve():
+    w = watched(9, snapshot={"awaiting_resolve": 2})
+    assert "🧵 2" in views.mr_line(w, "en", NOW)
