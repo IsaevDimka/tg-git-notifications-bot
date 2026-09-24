@@ -53,6 +53,10 @@ def apply(user: User, action: str, min_poll: int) -> dict:
         return {"mute_bots": not user.mute_bots}
     if action == "md":
         return {"mute_drafts": not user.mute_drafts}
+    if action == "sl":
+        return {"share_load": not user.share_load}
+    if action == "wk":
+        return {"weekly_enabled": not user.weekly_enabled}
     if action == "ev":
         return {"evening_enabled": not user.evening_enabled}
     if action == "evt":
@@ -77,6 +81,10 @@ def settings_view(user: User) -> tuple[str, InlineKeyboardMarkup]:
     rows.append([btn(digest, "st:dg"), btn(t(lang, "st.digest_time"), "st:dgt")])
     evening = t(lang, "st.evening_on", time=user.evening_time) if user.evening_enabled else t(lang, "st.evening_off")
     rows.append([btn(evening, "st:ev"), btn(t(lang, "st.evening_time"), "st:evt")])
+    rows.append([
+        btn(t(lang, "st.weekly_on" if user.weekly_enabled else "st.weekly_off"), "st:wk"),
+        btn(t(lang, "st.load_shared" if user.share_load else "st.load_hidden"), "st:sl"),
+    ])
     quiet = (
         t(lang, "st.quiet_on", start=user.quiet_from, end=user.quiet_to)
         if user.quiet_enabled

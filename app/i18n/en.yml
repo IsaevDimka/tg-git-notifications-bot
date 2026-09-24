@@ -45,6 +45,7 @@ help.text: |-
   /my — only your own merge requests (author or assignee)
   /mute — mute a noisy project
   /watch — follow someone else's MR by link
+  /load — who is holding reviews; /stats — your review stats
   /status — is the bot working; /test — sample notifications
   /invite — invite a colleague (pings then reach them in Telegram)
   /accounts — connected GitLab and GitHub accounts
@@ -111,7 +112,7 @@ mr.empty_review: "Nothing waiting for your review 🎉"
 mr.empty_own: "You have no open merge requests."
 mr.no_accounts: "No accounts connected — send /start."
 mr.more: "…and {count} more"
-mr.legend: "🔴 your move · ⚪ waiting on others · ✅ nothing needed from you"
+mr.legend: "🔴 your move · ⚪ waiting on others · ✅ nothing needed from you · 🧵 your threads await your resolve"
 inbox.header: "📥 <b>Your move: {count}</b>"
 inbox.empty: "📭 Nobody is waiting on you right now."
 inbox.unread: "unread: {count}"
@@ -220,3 +221,23 @@ act.pinged_dm: "Sent via Telegram: {names}"
 act.pinged_both: "Sent via Telegram: {dm}; commented in the MR: {mr}"
 cmd.invite: "Invite a colleague"
 invite.link: "👥 One-time invite link (valid 7 days):\n{link}\n\nYour colleague opens it and gets in without admin approval. Once you're both here, \"Ping\" reaches them in Telegram instead of as an MR comment."
+cmd.load: "Who is holding reviews"
+cmd.stats: "My review stats"
+load.header: "📊 <b>Review load</b>"
+load.team: "<b>Team in the bot — MRs waiting for their review:</b>"
+load.mine: "<b>Your merge requests wait for:</b>"
+load.line: "@{name} — {count}"
+load.line_oldest: "@{name} — {count} (oldest {age})"
+load.empty: "Nothing to show yet — connect an account and wait for the first check."
+load.privacy: "Numbers only, no MR titles. Hide yourself from this list in /settings."
+stats.header: "📈 <b>Your review stats — last {days} days</b>"
+stats.weekly_header: "📅 <b>Your week in review</b>"
+stats.reviews: "🔔 Review requests: {requested} · re-reviews: {rereview}"
+stats.talk: "↩️ Replies to you: {replies} · mentions: {mentions}"
+stats.mine: "🛠 Your merge requests: merged {merged} · approvals {approved} · changes requested {changes}"
+stats.now: "Now: waiting for your review: {waiting}{oldest} · your merge requests open: {own}, waiting for reviewers: {pending}"
+stats.oldest: " (oldest {age})"
+st.weekly_on: "📅 Friday report: on"
+st.weekly_off: "📅 Friday report: off"
+st.load_shared: "📊 My load in /load: shown"
+st.load_hidden: "📊 My load in /load: hidden"

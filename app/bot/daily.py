@@ -5,6 +5,7 @@ from datetime import datetime, time
 
 from telegram.constants import ParseMode
 
+from app.bot.team import stats_text
 from app.bot.views import mr_line
 from app.core.noise import visible
 from app.core.quiet import user_zone
@@ -15,6 +16,7 @@ from app.storage.store import Store, User, Watched
 
 log = logging.getLogger(__name__)
 SECTION_MAX = 5
+WEEKLY_TIME = "17:00"
 
 
 def _due(user: User, now: datetime, enabled: bool, at: str, last: str | None) -> str | None:
@@ -33,6 +35,13 @@ def _due(user: User, now: datetime, enabled: bool, at: str, last: str | None) ->
 def digest_due(user: User, now: datetime) -> str | None:
     """The user's local date if today's morning summary should go out now, else None."""
     return _due(user, now, user.digest_enabled, user.digest_time, user.digest_last)
+
+
+def weekly_due(user: User, now: datetime) -> str | None:
+    """The opt-in Friday report, 17:00 local."""
+    if user.weekly_enabled and now.astimezone(user_zone(user.tz)).weekday() == 4:
+        return _due(user, now, True, WEEKLY_TIME, user.weekly_last)
+    return None
 
 
 def evening_due(user: User, now: datetime) -> str | None:
@@ -67,13 +76,20 @@ async def send_daily(bot, store: Store, now: datetime) -> int:
     """Morning and (opt-in) evening summaries; each at most once per local day."""
     sent = 0
     for user in await store.active_users():
-        for evening, due, last_field in ((False, digest_due, "digest_last"), (True, evening_due, "evening_last")):
+        for kind, due, last_field in (
+            ("morning", digest_due, "digest_last"),
+            ("evening", evening_due, "evening_last"),
+            ("weekly", weekly_due, "weekly_last"),
+        ):
             today = due(user, now)
             if today is None:
                 continue
             try:
-                ws = visible(user, await store.watched_for_user(user.tg_id))
-                text = render_daily(ws, user.lang, now, evening=evening)
+                if kind == "weekly":
+                    text = await stats_text(store, user, 7, now, header_key="stats.weekly_header")
+                else:
+                    ws = visible(user, await store.watched_for_user(user.tg_id))
+                    text = render_daily(ws, user.lang, now, evening=kind == "evening")
                 if text:
                     await bot.send_message(
                         user.chat_id, text, parse_mode=ParseMode.HTML, link_preview_options=NO_PREVIEW

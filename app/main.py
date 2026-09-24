@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 
 from app import timeutil
-from app.bot import access, actions, inputs, onboarding, settings, status, views, watch
+from app.bot import access, actions, inputs, onboarding, settings, status, team, views, watch
 from app.bot.commands import bot_commands
 from app.bot.daily import send_daily
 from app.config import Config, ensure_writable, load_config
@@ -42,6 +42,8 @@ COMMAND_HANDLERS = (
     ("mute", settings.cmd_mute),
     ("watch", watch.cmd_watch),
     ("status", status.cmd_status),
+    ("load", team.cmd_load),
+    ("stats", team.cmd_stats),
     ("invite", onboarding.cmd_invite),
     ("test", status.cmd_test),
     ("accounts", settings.cmd_accounts),

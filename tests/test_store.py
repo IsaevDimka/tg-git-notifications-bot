@@ -204,3 +204,17 @@ async def test_failed_migration_rolls_back_and_can_be_retried(tmp_path, monkeypa
     async with s.db.execute("PRAGMA user_version") as cur:
         assert (await cur.fetchone())[0] == len(good) + 1
     await s.close()
+
+
+async def test_event_counts_since(store):
+    await _user(store, 1)
+    acc = await store.add_account(1, "gitlab", "gitlab.example.com", "me", "s", NOW)
+    await store.add_event(1, acc.id, Event(Kind.REVIEW_REQUESTED, dedup="a", item=item()), NOW - timedelta(days=10))
+    await store.add_event(1, acc.id, Event(Kind.REVIEW_REQUESTED, dedup="b", item=item()), NOW - timedelta(days=1))
+    await store.add_event(1, acc.id, Event(Kind.MERGED, dedup="c", item=item()), NOW)
+    assert await store.event_counts(1, NOW - timedelta(days=7)) == {"review_requested": 1, "merged": 1}
+
+
+async def test_team_settings_defaults(store):
+    user = await _user(store, 1)
+    assert user.share_load and not user.weekly_enabled and user.weekly_last is None

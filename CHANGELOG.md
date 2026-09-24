@@ -4,6 +4,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+### Added (v0.3)
+- 🧵 Count of your threads the other side answered (waiting for your resolve) in `/mr`, `/inbox` and summaries.
+- `/load` — your MRs waiting on each reviewer, and how many reviews each colleague in the bot is holding (numbers only; hide yourself in `/settings`).
+- `/stats [days]` — review requests, re-reviews, replies, mentions, your merges/approvals, and what's waiting now.
+- Opt-in Friday report (17:00 local) with the week's stats.
+
 ### Fixed
 - Schema migrations run in a transaction: a crash mid-way no longer breaks every restart with "duplicate column".
 - "Token stopped working" is no longer counted as an unread mention, and tokens that died before this notice existed are reported too.

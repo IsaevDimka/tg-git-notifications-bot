@@ -472,3 +472,17 @@ async def test_network_errors_are_logged_without_traceback(store, caplog):
     [record] = [r for r in caplog.records if "account" in r.getMessage()]
     assert record.levelname == "WARNING" and record.exc_info is None
     assert (await store.get_account(acc.id)).last_error == "ConnectTimeout: timed out"
+
+
+async def test_snapshot_counts_threads_waiting_for_my_resolve(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1)
+    p.items = [mr]
+    p.details_by_key[mr.key] = details(
+        thread("t1", note(1, "me", "rename"), note(2, "alice", "done")),  # answered, waits for my resolve
+        thread("t2", note(3, "me", "why?")),  # still waiting for the author
+        thread("t3", note(4, "me", "typo"), note(5, "alice", "fixed"), resolved=True),
+    )
+    await poll_account(p, store, acc, NOW)
+    assert (await store.get_watched(acc.id, mr.key)).snapshot["awaiting_resolve"] == 1

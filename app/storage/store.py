@@ -46,6 +46,9 @@ class User:
     evening_enabled: bool = False
     evening_time: str = "18:00"
     evening_last: str | None = None
+    share_load: bool = True  # appear (as numbers only) in colleagues' /load
+    weekly_enabled: bool = False  # Friday report
+    weekly_last: str | None = None
 
 
 @dataclass(frozen=True)
@@ -93,7 +96,7 @@ _USER_FIELDS = frozenset(
         "chat_id", "username", "lang", "tz", "status", "is_admin", "poll_interval",
         "quiet_enabled", "quiet_from", "quiet_to", "quiet_weekends", "muted_kinds",
         "digest_enabled", "digest_time", "digest_last", "mute_bots", "mute_drafts", "muted_projects",
-        "evening_enabled", "evening_time", "evening_last",
+        "evening_enabled", "evening_time", "evening_last", "share_load", "weekly_enabled", "weekly_last",
     }
 )
 _ACCOUNT_FIELDS = frozenset(
@@ -129,6 +132,9 @@ def _user(r) -> User:
         evening_enabled=bool(r["evening_enabled"]),
         evening_time=r["evening_time"],
         evening_last=r["evening_last"],
+        share_load=bool(r["share_load"]),
+        weekly_enabled=bool(r["weekly_enabled"]),
+        weekly_last=r["weekly_last"],
     )
 
 
@@ -406,6 +412,13 @@ class Store:
             (tg_id,),
         )
         return {r["item_key"]: r["n"] for r in rows}
+
+    async def event_counts(self, tg_id: int, since: datetime) -> dict[str, int]:
+        rows = await self._all(
+            "SELECT kind, COUNT(*) AS n FROM events WHERE tg_id = ? AND created_at >= ? GROUP BY kind",
+            (tg_id, iso(since)),
+        )
+        return {r["kind"]: r["n"] for r in rows}
 
     async def unread_mention_count(self, tg_id: int) -> int:
         row = await self._one(

@@ -101,6 +101,8 @@ Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the 
 | `/watch <link>` | Follow someone else's MR: approvals, merged, closed |
 | `/mute` | Mute a noisy project (list with buttons, or `/mute group/project`) |
 | `/lang` | Switch language (RU / EN) |
+| `/load` | Who is holding reviews: your MRs waiting on each reviewer, and colleagues' queues (numbers only) |
+| `/stats [days]` | Your review activity for the last 7 (or N) days |
 | `/status` | Is the bot working: last check, errors, API rate limit left |
 | `/test` | Samples of every notification type |
 | `/invite` | One-time link for a colleague (skips admin approval); pings then reach them in Telegram |

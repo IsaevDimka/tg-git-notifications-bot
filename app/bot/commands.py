@@ -4,7 +4,7 @@ from telegram import BotCommand
 
 from app.i18n import t
 
-COMMANDS = ("inbox", "mr", "my", "watch", "mute", "accounts", "settings", "status", "invite", "lang", "help", "start")
+COMMANDS = ("inbox", "mr", "my", "watch", "mute", "accounts", "settings", "load", "stats", "status", "invite", "lang", "help", "start")
 
 
 def bot_commands(lang: str) -> list[BotCommand]:
