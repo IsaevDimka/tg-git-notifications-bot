@@ -22,7 +22,7 @@ from app.config import Config, ensure_writable, load_config
 from app.core.delivery import deliver_all
 from app.core.poller import poll_due
 from app.crypto import TokenBox
-from app.health import beat
+from app.health import safe_beat
 from app.logs import setup_logging
 from app.providers import make_provider
 from app.storage.store import Store
@@ -64,7 +64,7 @@ async def _poll_loop(app: Application) -> None:
             await poll_due(store, lambda acc: make(acc.kind, acc.host, box.open(acc.token_enc)), timeutil.now())
         except Exception:
             log.exception("poll cycle failed")
-        beat(cfg.data_dir)
+        safe_beat(cfg.data_dir)
         await asyncio.sleep(POLL_TICK)
 
 

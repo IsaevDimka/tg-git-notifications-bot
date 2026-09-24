@@ -61,3 +61,9 @@ def test_http_client_does_not_follow_redirects():
 
 def test_new_commands_present():
     assert {"my", "lang"} <= set(COMMANDS)
+
+
+def test_heartbeat_failure_does_not_raise(tmp_path):
+    missing = tmp_path / "gone"  # directory vanished / disk read-only
+    assert health.safe_beat(missing) is False
+    assert health.safe_beat(tmp_path) is True and health.check(tmp_path)
