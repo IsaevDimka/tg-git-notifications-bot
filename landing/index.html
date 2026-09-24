@@ -18,16 +18,16 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --paper:#f6f8fa; --card:#ffffff; --ink:#1f2328; --muted:#59636e; --line:#d1d9e0;
   --add:#1a7f37; --add-bg:#dafbe1; --add-gutter:#aceebb;
   --del:#cf222e; --del-bg:#ffebe9; --del-gutter:#ffcecb;
   --hl:#fff8c5; --tg:#2aabee; --tg-bubble:#ffffff; --tg-chat:#dbe7ef; --focus:#0969da;
-  --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
-  --sans:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
-  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --display:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   color-scheme:light;
 }
 /* theme: system by default, overridable with the toggle (stored in localStorage) */
@@ -58,7 +58,7 @@ code,pre,.mono{font-family:var(--mono)}
 /* nav */
 header.top{border-bottom:1px solid var(--line);background:var(--paper)}
 header.top .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:16px}
-.repo{font:600 15px var(--mono);text-decoration:none;display:flex;align-items:center;gap:10px}
+.repo{font:700 15px var(--mono);text-decoration:none;display:flex;align-items:center;gap:10px}
 .repo .bell{font-size:20px}
 .top nav{display:flex;align-items:center;gap:22px;font-size:15px}
 .top nav a{text-decoration:none;color:var(--muted)}
@@ -80,7 +80,7 @@ header.top .wrap{display:flex;align-items:center;justify-content:space-between;h
 /* hero */
 .hero{padding:72px 0 88px}
 .hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:56px;align-items:center}
-h1{font:800 clamp(40px,5.6vw,68px)/1.02 var(--display);letter-spacing:-.025em;max-width:13ch}
+h1{font:900 clamp(40px,5.6vw,68px)/1.02 var(--display);letter-spacing:-.035em;max-width:13ch}
 .lede{margin-top:24px;font-size:19px;color:var(--muted);max-width:48ch}
 .lede strong{color:var(--ink);font-weight:600}
 .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
@@ -114,7 +114,7 @@ h1{font:800 clamp(40px,5.6vw,68px)/1.02 var(--display);letter-spacing:-.025em;ma
 
 /* sections */
 section{padding:88px 0;border-top:1px solid var(--line)}
-h2{font:800 clamp(30px,3.6vw,44px)/1.08 var(--display);letter-spacing:-.02em;max-width:22ch}
+h2{font:800 clamp(30px,3.6vw,44px)/1.08 var(--display);letter-spacing:-.03em;max-width:22ch}
 .intro{margin-top:16px;color:var(--muted);max-width:60ch;font-size:18px}
 
 /* whose move */
@@ -140,7 +140,7 @@ h2{font:800 clamp(30px,3.6vw,44px)/1.08 var(--display);letter-spacing:-.02em;max
 
 /* features */
 .groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:48px 56px;margin-top:48px}
-.group h3{font:600 22px/1.2 var(--display);margin-bottom:14px}
+.group h3{font:700 21px/1.25 var(--display);letter-spacing:-.015em;margin-bottom:14px}
 .group ul{list-style:none;display:grid;gap:10px}
 .group li{padding-left:22px;position:relative;color:var(--muted)}
 .group li::before{content:"+";position:absolute;left:0;color:var(--add);font:600 16px var(--mono)}
@@ -215,7 +215,7 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
 <section class="hero" style="border-top:0">
   <div class="wrap">
     <div>
-      <h1><span lang="en">Stop pinging people about code review.</span><span lang="ru">Хватит пинговать коллег по код-ревью.</span></h1>
+      <h1><span lang="en">Stop pinging people about code review.</span><span lang="ru">Хватит пинговать коллег по код‑ревью.</span></h1>
       <p class="lede" lang="en">A self-hosted Telegram bot for <strong>GitLab and GitHub</strong>. It tells each person when a merge request needs <strong>their</strong> move — a review request, a reply to their comment, new commits after their review — and lets them reply, resolve or approve right from the chat.</p>
       <p class="lede" lang="ru">Self-hosted Telegram-бот для <strong>GitLab и GitHub</strong>. Пишет каждому, когда в MR ход за <strong>ним</strong>: новое ревью, ответ на его комментарий, новые коммиты после его ревью — и даёт ответить, резолвнуть или заапрувить прямо из чата.</p>
       <div class="actions">

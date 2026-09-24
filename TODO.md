@@ -4,9 +4,9 @@
 
 ## Ближайшее
 - [x] **D2a · Код в GitHub** — v0.1 (#1) и v0.2 (#3) смёржены в `master`, CI зелёный.
-- [ ] **D2b · Релизные теги** — `v0.1.0` и `v0.2.0` → GitHub Actions соберёт образ `ghcr.io/isaevdimka/tg-git-notifications-bot` (amd64/arm64). Без тега `docker run …:latest` из README не сработает.
+- [x] **D2b · Релизные теги** — `v0.1.0` и `v0.2.0` → образы `ghcr.io/isaevdimka/tg-git-notifications-bot:{0.1.0,0.2.0,latest}` опубликованы, GitHub Releases созданы.
 - [ ] **D1 · Деплой на do-ams3-claude-01 (188.166.91.129)** — `make up` рядом с tg-claude-bot, named volume, `.env` с токеном бота; после деплоя выставить `MR_POLL_INTERVAL=0` в tg-claude-bot, чтобы не было дублей.
-- [ ] **L1 · Лендинг на GitHub Pages** — `landing/index.html` + `.github/workflows/pages.yml`; включить Pages → Source: GitHub Actions.
+- [x] **L1 · Лендинг на GitHub Pages** — `landing/index.html` + `.github/workflows/pages.yml`; живёт на https://isaevdimka.github.io/tg-git-notifications-bot/.
 
 ## Продвижение (open source)
 - [ ] **P1 · Карточка репозитория** — description, website, topics (`telegram-bot`, `gitlab`, `github`, `code-review`, `self-hosted`, `notifications`), social preview (картинка 1280×640).
