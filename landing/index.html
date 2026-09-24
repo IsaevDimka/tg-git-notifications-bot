@@ -12,6 +12,10 @@
 <meta property="og:description" content="A self-hosted Telegram bot for GitLab and GitHub that tells each person when it's their move on a merge request.">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔔</text></svg>">
+<script>
+  // apply the saved theme before first paint so there's no flash
+  try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -24,12 +28,22 @@
   --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
   --sans:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root{
+/* theme: system by default, overridable with the toggle (stored in localStorage) */
+:root[data-theme="dark"]{
   --paper:#0d1117; --card:#151b23; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
   --add:#3fb950; --add-bg:#12261e; --add-gutter:#1b4721;
   --del:#f85149; --del-bg:#25171c; --del-gutter:#5d1f24;
   --hl:#3b2e0a; --tg-bubble:#1f2a36; --tg-chat:#0f1a24; --focus:#4493f8;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0d1117; --card:#151b23; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
+  --add:#3fb950; --add-bg:#12261e; --add-gutter:#1b4721;
+  --del:#f85149; --del-bg:#25171c; --del-gutter:#5d1f24;
+  --hl:#3b2e0a; --tg-bubble:#1f2a36; --tg-chat:#0f1a24; --focus:#4493f8;
+  color-scheme:dark;
 }}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -49,6 +63,16 @@ header.top .wrap{display:flex;align-items:center;justify-content:space-between;h
 .top nav{display:flex;align-items:center;gap:22px;font-size:15px}
 .top nav a{text-decoration:none;color:var(--muted)}
 .top nav a:hover{color:var(--ink)}
+.theme{display:grid;place-items:center;width:32px;height:30px;border:1px solid var(--line);border-radius:6px;background:none;color:var(--muted);cursor:pointer}
+.theme:hover{color:var(--ink);border-color:var(--muted)}
+.theme svg{width:16px;height:16px}
+.theme .moon{display:none}
+:root[data-theme="dark"] .theme .sun{display:none}
+:root[data-theme="dark"] .theme .moon{display:block}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .theme .sun{display:none}
+  :root:not([data-theme="light"]) .theme .moon{display:block}
+}
 .lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .lang button{font:500 13px var(--sans);background:none;border:0;color:var(--muted);padding:5px 10px;cursor:pointer}
 .lang button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
@@ -175,6 +199,10 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
       <a class="hide-sm" href="#how"><span lang="en">How it works</span><span lang="ru">Как работает</span></a>
       <a class="hide-sm" href="#install"><span lang="en">Install</span><span lang="ru">Установка</span></a>
       <a href="https://github.com/IsaevDimka/tg-git-notifications-bot">GitHub</a>
+      <button type="button" class="theme" aria-label="Switch light or dark theme" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+      </button>
       <div class="lang" role="group" aria-label="Language">
         <button type="button" data-set="en" aria-pressed="true">EN</button>
         <button type="button" data-set="ru" aria-pressed="false">RU</button>
@@ -380,7 +408,7 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
     <h2><span lang="en">Let the bot do the nagging.</span><span lang="ru">Пусть напоминает бот.</span></h2>
     <div class="actions">
       <a class="btn primary" href="#install"><span lang="en">Deploy with Docker</span><span lang="ru">Развернуть в Docker</span></a>
-      <a class="btn ghost" href="https://github.com/IsaevDimka/tg-git-notifications-bot"><span lang="en">Star on GitHub</span><span lang="ru">Звезда на GitHub</span></a>
+      <a class="btn ghost" href="https://github.com/IsaevDimka/tg-git-notifications-bot"><span lang="en">⭐ Star on GitHub</span><span lang="ru">⭐ Поставить звезду на GitHub</span></a>
     </div>
   </div>
 </section>
@@ -406,6 +434,18 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
   var param = new URLSearchParams(location.search).get('lang');
   set(param || saved || ((navigator.language || '').toLowerCase().indexOf('ru') === 0 ? 'ru' : 'en'));
   buttons.forEach(function (b) { b.addEventListener('click', function () { set(b.dataset.set); }); });
+
+  var toggle = document.querySelector('.theme');
+  var systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  function current() { return root.dataset.theme || (systemDark.matches ? 'dark' : 'light'); }
+  function label() { toggle.setAttribute('aria-pressed', String(current() === 'dark')); }
+  toggle.addEventListener('click', function () {
+    var next = current() === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch (e) {}
+    label();
+  });
+  label();
 })();
 </script>
 </body>
