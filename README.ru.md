@@ -120,6 +120,29 @@ make install              # спросит токен бота, создаст .
 В репозитории есть `fly.toml`, `render.yaml` и `railway.json`. Каждому нужен `TELEGRAM_TOKEN` и постоянный
 диск, смонтированный в `/data`.
 
+### Деплой на свой сервер по SSH (`make deploy`)
+
+Для сервера с Docker, куда есть SSH (соседние compose-проекты не мешают: у бота своё имя проекта, нет портов,
+лимит памяти 256 МБ). `deploy/docker-compose.prod.yml` копируется на сервер как `$DEPLOY_DIR/docker-compose.yml`,
+данные лежат рядом в `./data`.
+
+```bash
+make deploy-env                      # один раз: залить локальный .env (0600)
+make deploy                          # скопировать compose, подтянуть образ, up -d
+make deploy IMAGE_TAG=0.2.0          # зафиксировать версию
+```
+
+| Переменная | По умолчанию |
+|---|---|
+| `DEPLOY_HOST` | `tg-bot` (SSH-алиас) |
+| `DEPLOY_USER` | `devops` (нужна группа `docker` и право записи в `DEPLOY_DIR`) |
+| `DEPLOY_DIR` | `/opt/tg-git-notifications-bot` |
+| `IMAGE_TAG` | `latest` |
+
+`make deploy-status` · `make deploy-logs` · `make deploy-restart`. Переезд существующего инстанса: сначала
+остановить старый (два polling-инстанса с одним токеном получают `409 Conflict`), затем скопировать `bot.db` и
+`secret.key` в `$DEPLOY_DIR/data/` — без того же `secret.key` сохранённые токены не расшифровать.
+
 ## Разработка
 
 ```bash

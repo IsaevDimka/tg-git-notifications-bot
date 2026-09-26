@@ -21,6 +21,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 - GitHub: search is paginated (newest first, up to 300) and the newest review threads are fetched on very busy PRs.
 
 ### Added
+- `make deploy` / `deploy-env` / `deploy-status` / `deploy-logs` / `deploy-restart`: deploy over SSH with `deploy/docker-compose.prod.yml` (own compose project, 256 MB limit, rotated logs).
 - `make install` (first run: asks for the bot token, writes `.env` 0600, pulls and starts) and `make status`.
 - Requirements and everyday `make` commands in both READMEs and on the website.
 

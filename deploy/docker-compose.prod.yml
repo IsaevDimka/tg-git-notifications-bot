@@ -1,0 +1,20 @@
+# Production compose for a shared server (copied to $DEPLOY_DIR/docker-compose.yml by `make deploy`).
+# Own project name, no ports, no custom networks — safe to run next to other compose projects.
+name: tg-git-notifications-bot
+
+services:
+  bot:
+    image: ghcr.io/isaevdimka/tg-git-notifications-bot:${IMAGE_TAG:-latest}
+    container_name: tg-git-notifications-bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

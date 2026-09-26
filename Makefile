@@ -1,12 +1,12 @@
 .DEFAULT_GOAL := help
-.PHONY: help deps test lint check run install build up down restart status logs update backup
+.PHONY: help deps test lint check run install build up down restart status logs update backup deploy deploy-env deploy-status deploy-logs deploy-restart
 
 COMPOSE ?= docker compose
 TS      := $(shell date +%Y%m%d-%H%M%S)
 HOST_ID := $(shell id -u):$(shell id -g)
 
 help: ## Show available commands
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  \033[36m%-9s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 # --- development --------------------------------------------------------------------------
 
@@ -66,6 +66,34 @@ backup: .env ## Save bot.db + secret.key to ./backups (safe while running)
 	$(COMPOSE) run --rm --no-deps -v "$(CURDIR)/backups:/backup" --entrypoint sh bot \
 		-c "python -m app.backup /backup/data-$(TS).tar.gz && chown $(HOST_ID) /backup/data-$(TS).tar.gz"
 	@echo "Keep backups/data-$(TS).tar.gz private: it contains the key that decrypts all stored tokens."
+
+# --- remote deploy (ssh + docker compose on DEPLOY_HOST) ------------------------------------
+
+DEPLOY_HOST ?= tg-bot
+DEPLOY_USER ?= devops
+DEPLOY_DIR  ?= /opt/tg-git-notifications-bot
+IMAGE_TAG   ?= latest
+SSH         := ssh $(DEPLOY_USER)@$(DEPLOY_HOST)
+REMOTE      := cd $(DEPLOY_DIR) && IMAGE_TAG=$(IMAGE_TAG) docker compose
+
+deploy: ## Copy deploy/docker-compose.prod.yml to DEPLOY_HOST, pull IMAGE_TAG and start
+	$(SSH) 'mkdir -p $(DEPLOY_DIR)/data && test -f $(DEPLOY_DIR)/.env || { echo "No $(DEPLOY_DIR)/.env — run: make deploy-env"; exit 1; }'
+	scp -q deploy/docker-compose.prod.yml $(DEPLOY_USER)@$(DEPLOY_HOST):$(DEPLOY_DIR)/docker-compose.yml
+	$(SSH) '$(REMOTE) pull && $(REMOTE) up -d && $(REMOTE) ps'
+
+deploy-env: .env ## Upload local .env to DEPLOY_HOST (mode 0600)
+	$(SSH) 'mkdir -p $(DEPLOY_DIR)/data'
+	scp -q .env $(DEPLOY_USER)@$(DEPLOY_HOST):$(DEPLOY_DIR)/.env
+	$(SSH) 'chmod 600 $(DEPLOY_DIR)/.env'
+
+deploy-status: ## Remote container state and health
+	$(SSH) '$(REMOTE) ps'
+
+deploy-logs: ## Follow remote logs
+	$(SSH) -t '$(REMOTE) logs -f --tail=100'
+
+deploy-restart: ## Restart the remote bot
+	$(SSH) '$(REMOTE) restart'
 
 .env:
 	@echo "No .env found. Run: cp .env.example .env  — then set TELEGRAM_TOKEN."; exit 1
