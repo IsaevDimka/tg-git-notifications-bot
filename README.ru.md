@@ -143,6 +143,13 @@ make deploy IMAGE_TAG=0.2.0          # зафиксировать версию
 остановить старый (два polling-инстанса с одним токеном получают `409 Conflict`), затем скопировать `bot.db` и
 `secret.key` в `$DEPLOY_DIR/data/` — без того же `secret.key` сохранённые токены не расшифровать.
 
+### CI в зеркале на GitLab
+
+Репозиторий зеркалится в GitLab (`iac/tg-git-notifications-bot`) с `.gitlab-ci.yml`: `lint` (ruff, отчёт Code
+Quality) и `test` (pytest, отчёт JUnit) на каждый push и MR; на тег `vX.Y.Z` — ручной `deploy` на shell-раннере
+сервера: ждёт образ `ghcr.io/…:X.Y.Z` (собирает GitHub Actions), делает `docker compose pull && up -d` от `devops`
+в `$DEPLOY_DIR` и ждёт статуса healthy.
+
 ## Разработка
 
 ```bash
