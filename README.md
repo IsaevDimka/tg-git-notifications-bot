@@ -145,6 +145,13 @@ make deploy IMAGE_TAG=0.2.0          # pin a version
 (two polling instances with one token get `409 Conflict`), then copy `bot.db` and `secret.key` into
 `$DEPLOY_DIR/data/` — without the same `secret.key` the stored tokens can't be decrypted.
 
+### GitLab mirror CI
+
+The repo is mirrored to GitLab (`iac/tg-git-notifications-bot`) with `.gitlab-ci.yml`: `lint` (ruff, Code Quality
+report) and `test` (pytest, JUnit report) on every push and MR; on a `vX.Y.Z` tag a manual `deploy` job on the
+server's shell runner waits for `ghcr.io/…:X.Y.Z` (built by GitHub Actions), then `docker compose pull && up -d`
+as `devops` in `$DEPLOY_DIR` and waits until the container is healthy.
+
 ## Development
 
 ```bash
