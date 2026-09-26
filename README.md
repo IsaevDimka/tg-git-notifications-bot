@@ -122,6 +122,29 @@ Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the 
 `fly.toml`, `render.yaml` and `railway.json` are included. Each needs `TELEGRAM_TOKEN` and a persistent volume
 mounted at `/data`.
 
+### Remote deploy over SSH (`make deploy`)
+
+For a server you reach by SSH and that already runs Docker (other compose projects are fine — the bot uses its
+own project name, no ports and a 256 MB memory limit). `deploy/docker-compose.prod.yml` is copied to the server as
+`$DEPLOY_DIR/docker-compose.yml`; data lives next to it in `./data`.
+
+```bash
+make deploy-env                      # once: upload local .env (0600)
+make deploy                          # copy compose file, pull the image, up -d
+make deploy IMAGE_TAG=0.2.0          # pin a version
+```
+
+| Variable | Default |
+|---|---|
+| `DEPLOY_HOST` | `tg-bot` (SSH alias) |
+| `DEPLOY_USER` | `devops` (needs the `docker` group and write access to `DEPLOY_DIR`) |
+| `DEPLOY_DIR` | `/opt/tg-git-notifications-bot` |
+| `IMAGE_TAG` | `latest` |
+
+`make deploy-status` · `make deploy-logs` · `make deploy-restart`. Moving an existing instance: stop it first
+(two polling instances with one token get `409 Conflict`), then copy `bot.db` and `secret.key` into
+`$DEPLOY_DIR/data/` — without the same `secret.key` the stored tokens can't be decrypted.
+
 ## Development
 
 ```bash
