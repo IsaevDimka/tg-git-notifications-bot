@@ -168,6 +168,15 @@ async def test_mentions_latest_comment_without_mention_is_skipped(gh):
 
 
 @respx.mock
+async def test_mentions_from_archived_repo_are_skipped(gh):
+    respx.get(f"{API}/notifications").mock(return_value=httpx.Response(200, json=[
+        {"id": "1", "reason": "mention", "updated_at": "2026-09-24T11:00:00Z",
+         "repository": {"full_name": "acme/old", "archived": True},
+         "subject": {"title": "T", "latest_comment_url": f"{API}/c/1"}},
+    ]))
+    assert await gh.mentions("me", None) == []
+
+@respx.mock
 async def test_write_actions(gh):
     thread_reply = respx.post(f"{API}/repos/acme/app/pulls/5/comments/10/replies").mock(
         return_value=httpx.Response(201, json={}))

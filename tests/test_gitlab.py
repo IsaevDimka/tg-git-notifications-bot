@@ -105,6 +105,13 @@ async def test_list_items_merges_roles_and_follows_pages(gl):
 
 
 @respx.mock
+async def test_list_items_skips_archived_projects(gl):
+    route = respx.get(f"{BASE}/merge_requests").mock(return_value=httpx.Response(200, json=[]))
+    await gl.list_items("me")
+    assert route.call_count == 3
+    assert all(c.request.url.params["non_archived"] == "true" for c in route.calls)
+
+@respx.mock
 async def test_details_maps_threads_approvals_and_pipeline(gl):
     respx.get(MR).mock(return_value=httpx.Response(200, json=mr_json(1, has_conflicts=True, sha="abc123",
                                                                      head_pipeline={"status": "failed"})))

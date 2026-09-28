@@ -100,7 +100,7 @@ class GitLab:
         )
 
     async def list_items(self, me: str) -> list[ReviewItem]:
-        base = {"scope": "all", "state": "opened"}
+        base = {"scope": "all", "state": "opened", "non_archived": "true"}
         found: dict[str, ReviewItem] = {}
         for mr in await self._paged("/merge_requests", {**base, "reviewer_username": me}):
             if mr["author"]["username"] != me:
