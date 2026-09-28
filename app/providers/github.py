@@ -191,7 +191,7 @@ class GitHub:
             params["since"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
         out: list[Mention] = []
         for n in (await self._req("GET", "/notifications", params=params)).json():
-            if n.get("reason") != "mention":
+            if n.get("reason") != "mention" or (n.get("repository") or {}).get("archived"):
                 continue
             subject = n.get("subject") or {}
             url = subject.get("latest_comment_url") or subject.get("url")

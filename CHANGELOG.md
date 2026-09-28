@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+### Fixed
+- MRs from archived GitLab projects and mentions from archived GitHub repos are no longer delivered (`non_archived=true`, `repository.archived`).
+
 ## [0.3.0] - 2026-09-26
 
 ### Added
