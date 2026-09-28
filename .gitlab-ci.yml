@@ -45,7 +45,7 @@ test:
     reports:
       junit: report.xml
 
-# Shell runner on do-ams3-claude-01. Runs compose as devops (owner of DEPLOY_DIR and its 0600 .env);
+# Shell runner on do-ams3-cloud-01. Runs compose as devops (owner of DEPLOY_DIR and its 0600 .env);
 # the compose file is fed from the checked-out tag via stdin, so the server copy can't drift.
 deploy:
   stage: deploy
