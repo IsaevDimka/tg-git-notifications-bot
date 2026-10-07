@@ -4,7 +4,7 @@
 
 ## Ближайшее
 - [x] **D2a · Код в GitHub** — v0.1 (#1) и v0.2 (#3) смёржены в `master`, CI зелёный.
-- [x] **D2b · Релизные теги** — `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.3.1` → образы `ghcr.io/isaevdimka/tg-git-notifications-bot:{0.1.0,0.2.0,0.3.0,0.3.1,latest}`, GitHub Releases созданы.
+- [x] **D2b · Релизные теги** — `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.3.1`, `v0.4.0` → образы `ghcr.io/isaevdimka/tg-git-notifications-bot:{0.1.0,0.2.0,0.3.0,0.3.1,0.4.0,latest}`, GitHub Releases созданы.
 - [x] **D1 · Деплой на do-ams3-cloud-01 (134.209.91.195)** — `make deploy` (ssh `devops@tg-bot`, `/opt/tg-git-notifications-bot`, свой compose-проект, `./data` bind mount, mem 256m), данные и `secret.key` перенесены с локального инстанса. `MR_POLL_INTERVAL=0` в tg-claude-bot выставлен (дублей нет).
 - [x] **L1 · Лендинг на GitHub Pages** — `landing/index.html` + `.github/workflows/pages.yml`; живёт на https://isaevdimka.github.io/tg-git-notifications-bot/.
 
