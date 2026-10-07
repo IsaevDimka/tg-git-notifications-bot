@@ -1,5 +1,5 @@
+from app import timeutil
 from app.bot import onboarding
-from tests.factories import NOW
 from tests.tg import make_ctx, message_update, texts
 
 
@@ -28,7 +28,7 @@ async def test_invite_for_already_pending_user_admits_them(store):
     await onboarding.cmd_start(message_update("/start", user_id=1), ctx)
     await onboarding.cmd_start(message_update("/start", user_id=2, username="bob"), ctx)
     assert (await store.get_user(2)).status == "pending"
-    await store.create_invite("tok", 1, NOW)
+    await store.create_invite("tok", 1, timeutil.now())  # /start checks the TTL against the real clock
     ctx.args = ["inv_tok"]
     await onboarding.cmd_start(message_update("/start", user_id=2, username="bob"), ctx)
     assert (await store.get_user(2)).status == "active"
