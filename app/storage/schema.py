@@ -101,4 +101,16 @@ MIGRATIONS: list[str] = [
     ALTER TABLE users ADD COLUMN weekly_enabled INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE users ADD COLUMN weekly_last TEXT;
     """,
+    """
+    CREATE TABLE review_turns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tg_id INTEGER NOT NULL REFERENCES users(tg_id) ON DELETE CASCADE,
+        account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        item_key TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        ended_at TEXT NOT NULL,
+        first INTEGER NOT NULL
+    );
+    CREATE INDEX review_turns_user ON review_turns (tg_id, ended_at);
+    """,
 ]

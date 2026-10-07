@@ -74,3 +74,19 @@ async def test_cmd_stats_with_days(store):
     await team.cmd_stats(upd, ctx)
     text = texts(upd.effective_chat.send_message)[0]
     assert "last 30 days" in text and "merged 1" in text
+
+
+def test_render_stats_response_times():
+    turns = [(timedelta(hours=2), True), (timedelta(hours=6), False), (timedelta(hours=4), True)]
+    text = team.render_stats({}, [], 7, "en", NOW, turns=turns)
+    assert "Median response: 4 h (3 reviews)" in text and "to first review: 3 h" in text
+    assert "no data yet" in team.render_stats({}, [], 7, "en", NOW)
+
+
+async def test_review_turn_first_flag_per_mr(store):
+    await _users(store)
+    await store.add_review_turn(1, 1, "k1", NOW - timedelta(hours=5), NOW - timedelta(hours=4))
+    await store.add_review_turn(1, 1, "k1", NOW - timedelta(hours=2), NOW - timedelta(hours=1))
+    await store.add_review_turn(1, 1, "k2", NOW - timedelta(days=30), NOW - timedelta(days=29))
+    assert await store.review_turns(1, NOW - timedelta(days=7)) == [(timedelta(hours=1), True),
+                                                                     (timedelta(hours=1), False)]

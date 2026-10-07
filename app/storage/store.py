@@ -420,6 +420,25 @@ class Store:
         )
         return {r["kind"]: r["n"] for r in rows}
 
+    # ---- review turns: how long my move lasted on a reviewer MR --------------------------------
+
+    async def add_review_turn(self, tg_id: int, account_id: int, item_key: str, started: datetime,
+                              ended: datetime) -> None:
+        """`first` marks the first turn seen on this MR — its length is the time to first review."""
+        await self._write(
+            """INSERT INTO review_turns (tg_id, account_id, item_key, started_at, ended_at, first)
+               VALUES (?, ?, ?, ?, ?, NOT EXISTS (SELECT 1 FROM review_turns WHERE account_id = ? AND item_key = ?))""",
+            (tg_id, account_id, item_key, iso(started), iso(ended), account_id, item_key),
+        )
+
+    async def review_turns(self, tg_id: int, since: datetime) -> list[tuple[timedelta, bool]]:
+        """(how long the turn lasted, was it the first on its MR) for turns finished since `since`."""
+        rows = await self._all(
+            "SELECT started_at, ended_at, first FROM review_turns WHERE tg_id = ? AND ended_at >= ?",
+            (tg_id, iso(since)),
+        )
+        return [(parse_ts(r["ended_at"]) - parse_ts(r["started_at"]), bool(r["first"])) for r in rows]
+
     async def unread_mention_count(self, tg_id: int) -> int:
         row = await self._one(
             "SELECT COUNT(*) FROM events WHERE tg_id = ? AND read_at IS NULL AND item_key LIKE 'mention:%'",

@@ -1,0 +1,16 @@
+name: Feature request
+description: An idea for the bot
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What review situation is annoying or gets missed today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed behaviour
+      description: What should the bot send or show? Keep in mind it should work with only TELEGRAM_TOKEN configured.

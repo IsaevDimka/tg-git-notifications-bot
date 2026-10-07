@@ -1,0 +1,35 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Bot version
+      placeholder: "0.3.1 (image tag) or git describe"
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Git host
+      options:
+        - GitLab self-managed
+        - gitlab.com
+        - GitHub
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`make logs` / `docker logs`. Remove tokens and private MR titles before pasting."
+      render: text

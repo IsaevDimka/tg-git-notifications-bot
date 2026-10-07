@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+### Added
+- ⏱ `/stats` and the Friday report show your median response time on reviews and median time to first review (counted from now on: when your move on a reviewer MR ends).
+- `CONTRIBUTING.md` (incl. how to add a git host), issue and PR templates.
+
+### Fixed
+- `test_invite_for_already_pending_user_admits_them` failed once the fixed test date was more than 7 days in the past.
+
 ## [0.3.1] - 2026-09-28
 
 ### Fixed
