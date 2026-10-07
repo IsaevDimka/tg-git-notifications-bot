@@ -102,7 +102,7 @@ Back up `DATA_DIR` as a whole (`make backup` does it): without `secret.key` the 
 | `/mute` | Mute a noisy project (list with buttons, or `/mute group/project`) |
 | `/lang` | Switch language (RU / EN) |
 | `/load` | Who is holding reviews: your MRs waiting on each reviewer, and colleagues' queues (numbers only) |
-| `/stats [days]` | Your review activity for the last 7 (or N) days |
+| `/stats [days]` | Your review activity for the last 7 (or N) days, median response time and time to first review |
 | `/status` | Is the bot working: last check, errors, API rate limit left |
 | `/test` | Samples of every notification type |
 | `/invite` | One-time link for a colleague (skips admin approval); pings then reach them in Telegram |
@@ -162,4 +162,4 @@ cp .env.example .env   # set TELEGRAM_TOKEN and DATA_DIR=./data
 set -a; source .env; set +a; uv run python -m app
 ```
 
-Design: `docs/specs/2026-09-24-design.md`. License: MIT.
+Design: `docs/specs/2026-09-24-design.md`. Contributing (incl. adding a git host): [CONTRIBUTING.md](CONTRIBUTING.md). License: MIT.

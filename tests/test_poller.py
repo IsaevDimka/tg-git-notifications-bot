@@ -486,3 +486,30 @@ async def test_snapshot_counts_threads_waiting_for_my_resolve(store):
     )
     await poll_account(p, store, acc, NOW)
     assert (await store.get_watched(acc.id, mr.key)).snapshot["awaiting_resolve"] == 1
+
+
+async def test_my_review_turn_is_recorded_with_time_to_first_review(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1, updated="2026-09-24T08:00:00Z")
+    p.items = [mr]
+    p.details_by_key[mr.key] = details()
+    await poll_account(p, store, acc, NOW)
+    assert (await store.get_watched(acc.id, mr.key)).ball is Ball.ME
+    reviewed = replace(mr, updated_at=mr.updated_at + timedelta(hours=3))
+    p.items = [reviewed]
+    p.details_by_key[mr.key] = details(thread("t", note(1, "me", "please fix")), cr=["me"])
+    await poll_account(p, store, acc, NOW + timedelta(hours=5))
+    assert await store.review_turns(1, NOW - timedelta(days=7)) == [(timedelta(hours=3), True)]
+
+
+async def test_no_review_turn_while_still_my_move(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    mr = item(Role.REVIEWER, 1)
+    p.items = [mr]
+    p.details_by_key[mr.key] = details()
+    await poll_account(p, store, acc, NOW)
+    p.items = [replace(mr, updated_at=mr.updated_at + timedelta(hours=1))]
+    await poll_account(p, store, acc, NOW + timedelta(hours=1))
+    assert await store.review_turns(1, NOW - timedelta(days=7)) == []

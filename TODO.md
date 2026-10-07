@@ -5,7 +5,7 @@
 ## Ближайшее
 - [x] **D2a · Код в GitHub** — v0.1 (#1) и v0.2 (#3) смёржены в `master`, CI зелёный.
 - [x] **D2b · Релизные теги** — `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.3.1` → образы `ghcr.io/isaevdimka/tg-git-notifications-bot:{0.1.0,0.2.0,0.3.0,0.3.1,latest}`, GitHub Releases созданы.
-- [x] **D1 · Деплой на do-ams3-claude-01 (188.166.91.129)** — `make deploy` (ssh `devops@tg-bot`, `/opt/tg-git-notifications-bot`, свой compose-проект, `./data` bind mount, mem 256m), данные и `secret.key` перенесены с локального инстанса. Осталось: выставить `MR_POLL_INTERVAL=0` в tg-claude-bot, чтобы не было дублей.
+- [x] **D1 · Деплой на do-ams3-cloud-01 (134.209.91.195)** — `make deploy` (ssh `devops@tg-bot`, `/opt/tg-git-notifications-bot`, свой compose-проект, `./data` bind mount, mem 256m), данные и `secret.key` перенесены с локального инстанса. `MR_POLL_INTERVAL=0` в tg-claude-bot выставлен (дублей нет).
 - [x] **L1 · Лендинг на GitHub Pages** — `landing/index.html` + `.github/workflows/pages.yml`; живёт на https://isaevdimka.github.io/tg-git-notifications-bot/.
 
 ## Продвижение (open source)
@@ -13,7 +13,7 @@
 - [ ] **P2 · OG-картинка для лендинга** — превью ссылки в Telegram/Twitter (сейчас без картинки).
 - [ ] **P3 · Демо-GIF в README** — 10–15 секунд: уведомление → «Ответить» → ответ появился в GitLab.
 - [ ] **P4 · Посты** — Хабр («как мы перестали пинговать друг друга по ревью»), Telegram-каналы про DevOps/GitLab, r/selfhosted, r/gitlab; awesome-selfhosted / awesome-telegram-bots.
-- [ ] **P5 · CONTRIBUTING.md + issue-шаблоны** — как добавить свой Git-хостинг (Gitea/Forgejo — один файл в `app/providers/`).
+- [x] **P5 · CONTRIBUTING.md + issue-шаблоны** — как добавить свой Git-хостинг (Gitea/Forgejo — один файл в `app/providers/`).
 - [ ] **P6 · Своё доменное имя** (опционально) — `landing/CNAME` + DNS CNAME на `isaevdimka.github.io`.
 
 ## Долг (из ревью v0.1/v0.2)
@@ -52,5 +52,5 @@
 - [x] 24 · `/load` — нагрузка ревьюеров
 - [x] 25 · `/stats` — личная статистика ревью
 - [x] 26 · Пятничный отчёт
-- [ ] 25–26 хвосты · time-to-first-review в `/stats`, медиана ответа в пятничном отчёте
+- [x] 25–26 хвосты · time-to-first-review и медиана ответа в `/stats` и пятничном отчёте (таблица `review_turns`)
 - [ ] 28 · Уведомление о падении CI на моей ветке (тумблер, по умолчанию выкл.)

@@ -2,6 +2,7 @@
 
 from collections import Counter
 from datetime import datetime, timedelta
+from statistics import median
 
 from telegram.constants import ParseMode
 
@@ -41,8 +42,19 @@ def render_load(mine: list[Watched], peers: list[tuple[str, list[Watched]]], lan
     return "\n".join([*lines, "", t(lang, "load.privacy")])
 
 
+def render_timing(turns: list[tuple[timedelta, bool]], lang: str) -> str:
+    """Median time to answer when it was my move, and median time to the first review of an MR."""
+    if not turns:
+        return t(lang, "stats.timing_none")
+    first = [d for d, is_first in turns if is_first]
+    line = t(lang, "stats.timing", median=fmt_age(median(d for d, _ in turns), lang), n=len(turns))
+    if first:
+        line += t(lang, "stats.first_review", median=fmt_age(median(first), lang))
+    return line
+
+
 def render_stats(counts: dict[str, int], ws: list[Watched], days: int, lang: str, now: datetime,
-                 header_key: str = "stats.header") -> str:
+                 header_key: str = "stats.header", turns: list[tuple[timedelta, bool]] = ()) -> str:
     c = counts.get
     waiting = [w for w in ws if w.role is Role.REVIEWER and w.ball is Ball.ME]
     own = [w for w in ws if w.role is Role.AUTHOR]
@@ -53,6 +65,7 @@ def render_stats(counts: dict[str, int], ws: list[Watched], days: int, lang: str
         t(lang, "stats.reviews", requested=c("review_requested", 0), rereview=c("rereview", 0)),
         t(lang, "stats.talk", replies=c("reply_to_me", 0), mentions=c("mention", 0)),
         t(lang, "stats.mine", merged=c("merged", 0), approved=c("approved", 0), changes=c("changes_requested", 0)),
+        render_timing(list(turns), lang),
         "",
         t(lang, "stats.now", waiting=len(waiting), oldest=oldest, own=len(own),
           pending=sum(1 for w in own if w.ball is Ball.THEM)),
@@ -60,9 +73,11 @@ def render_stats(counts: dict[str, int], ws: list[Watched], days: int, lang: str
 
 
 async def stats_text(store, user, days: int, now: datetime, header_key: str = "stats.header") -> str:
-    counts = await store.event_counts(user.tg_id, now - timedelta(days=days))
+    since = now - timedelta(days=days)
+    counts = await store.event_counts(user.tg_id, since)
+    turns = await store.review_turns(user.tg_id, since)
     ws = visible(user, await store.watched_for_user(user.tg_id))
-    return render_stats(counts, ws, days, user.lang, now, header_key)
+    return render_stats(counts, ws, days, user.lang, now, header_key, turns)
 
 
 async def cmd_load(update, ctx) -> None:

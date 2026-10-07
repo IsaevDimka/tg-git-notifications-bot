@@ -113,7 +113,16 @@ async def _poll_item(
         ),
     }
     w = Watched(account.id, item.key, item.role, item, item.updated_at, snap, ball, since)
+    if old is not None and account.synced and _turn_ended(old, w):
+        # the MR's last update is when I acted; the poll only noticed it later
+        ended = min(max(item.updated_at, old.ball_since), now)
+        await store.add_review_turn(account.tg_id, account.id, item.key, old.ball_since, ended)
     return events, _reminders(w, now, account.synced), w
+
+
+def _turn_ended(old: Watched, new: Watched) -> bool:
+    """My move on a reviewer MR is over: I reviewed, commented or approved."""
+    return old.role is Role.REVIEWER and new.role is Role.REVIEWER and old.ball is Ball.ME and new.ball is not Ball.ME
 
 
 async def _gone(provider: Provider, w: Watched) -> tuple[list[Event], bool]:
