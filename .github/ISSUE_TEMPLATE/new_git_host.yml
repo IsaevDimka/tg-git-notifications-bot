@@ -1,0 +1,26 @@
+name: New git host
+description: Support for Gitea, Forgejo, Bitbucket or another hosting
+labels: [provider]
+body:
+  - type: input
+    id: host
+    attributes:
+      label: Hosting and version
+      placeholder: "Forgejo 9.0"
+    validations:
+      required: true
+  - type: checkboxes
+    id: api
+    attributes:
+      label: What its API offers
+      options:
+        - label: List merge/pull requests where I'm a requested reviewer
+        - label: Discussion threads with replies (and resolving)
+        - label: Approvals / "changes requested"
+        - label: Searching for @mentions
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to implement it (see CONTRIBUTING.md → "Adding a git host")
