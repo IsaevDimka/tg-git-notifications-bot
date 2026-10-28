@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+### Changed
+- Prod deploy no longer pulls from ghcr.io: GitLab CI builds the image on the server (`build`), `deploy` starts it from the local daemon, `publish` pushes it to the GitLab registry for rollback. The public ghcr.io image is still published by GitHub Actions.
+
 ## [0.4.0] - 2026-10-07
 
 ### Added
