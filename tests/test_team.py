@@ -65,7 +65,8 @@ async def test_cmd_load_respects_opt_out(store):
     assert "@ivan — 1" in text and "@shy" not in text
 
 
-async def test_cmd_stats_with_days(store):
+async def test_cmd_stats_with_days(store, monkeypatch):
+    monkeypatch.setattr(team.timeutil, "now", lambda: NOW)  # the 30-day window must not depend on the real clock
     me, _, _ = await _users(store)
     await store.add_event(1, me.id, Event(Kind.MERGED, dedup="m", item=item()), NOW)
     ctx = make_ctx(store)
