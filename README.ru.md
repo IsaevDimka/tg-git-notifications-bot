@@ -146,9 +146,9 @@ make deploy IMAGE_TAG=0.2.0          # зафиксировать версию
 ### CI в зеркале на GitLab
 
 Репозиторий зеркалится в GitLab (`iac/tg-git-notifications-bot`) с `.gitlab-ci.yml`: `lint` (ruff, отчёт Code
-Quality) и `test` (pytest, отчёт JUnit) на каждый push и MR; на тег `vX.Y.Z` — ручной `deploy` на shell-раннере
-сервера: ждёт образ `ghcr.io/…:X.Y.Z` (собирает GitHub Actions), делает `docker compose pull && up -d` от `devops`
-в `$DEPLOY_DIR` и ждёт статуса healthy.
+Quality) и `test` (pytest, отчёт JUnit) на каждый push и MR; на тег `vX.Y.Z` — `build` (`docker build` на shell-раннере
+сервера), ручной `deploy` поднимает этот локальный образ (`docker compose up -d` от `devops` в `$DEPLOY_DIR`) и ждёт
+статуса healthy, затем `publish` пушит образ в GitLab registry для отката.
 
 ## Разработка
 

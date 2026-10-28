@@ -4,7 +4,7 @@ name: tg-git-notifications-bot
 
 services:
   bot:
-    image: ghcr.io/isaevdimka/tg-git-notifications-bot:${IMAGE_TAG:-latest}
+    image: ${IMAGE:-registry.isaevdimka.com:5050/iac/tg-git-notifications-bot}:${IMAGE_TAG:-latest}
     container_name: tg-git-notifications-bot
     restart: unless-stopped
     env_file: .env

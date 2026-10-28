@@ -1,9 +1,11 @@
-# GitLab CI (mirror of the GitHub repo): lint + tests on every push/MR, manual deploy on v* tags.
-# The image itself is built by GitHub Actions (.github/workflows/release.yml) and pulled from ghcr.io.
+# GitLab CI (mirror of the GitHub repo): lint + tests on every push/MR; on v* tags build → manual deploy → publish.
+# Prod runs the image built here ($CI_REGISTRY_IMAGE); the public ghcr.io image (GitHub Actions) is for other users.
 
 stages:
   - check
+  - build
   - deploy
+  - publish
 
 workflow:
   rules:
@@ -45,38 +47,76 @@ test:
     reports:
       junit: report.xml
 
-# Shell runner on do-ams3-cloud-01. Runs compose as devops (owner of DEPLOY_DIR and its 0600 .env);
-# the compose file is fed from the checked-out tag via stdin, so the server copy can't drift.
+# The image is built on the deploy host itself (shell runner, gitlab-runner is in the docker group), so deploy
+# starts it straight from the local daemon. The registry push runs after deploy (publish): the route
+# DigitalOcean AMS3 → registry host is throttled (~110 KB/s), so it must not sit on the release path.
+build:
+  stage: build
+  tags: [deploy]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:${CI_COMMIT_TAG#v}" -t "$CI_REGISTRY_IMAGE:latest" .
+  after_script:
+    - docker builder prune -f --filter until=168h > /dev/null || true
+
+# Runs compose as devops (owner of DEPLOY_DIR and its 0600 .env); the compose file is fed from the checked-out
+# tag via stdin, so the server copy can't drift. A per-job DOCKER_CONFIG keeps the CI_JOB_TOKEN login out of $HOME.
 deploy:
   stage: deploy
   tags: [deploy]
+  needs: [build]
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
       when: manual
   variables:
     DEPLOY_DIR: /opt/tg-git-notifications-bot
-    IMAGE: ghcr.io/isaevdimka/tg-git-notifications-bot
+    DOCKER_CONFIG: /tmp/tg-git-notifications-bot-deploy-$CI_JOB_ID
   script:
     - export IMAGE_TAG="${CI_COMMIT_TAG#v}"
+    # built by this pipeline → already local; pull only on rollback to an older tag
     - |
-      # the GitHub release workflow may still be building the image
-      for i in $(seq 1 40); do
-        docker manifest inspect "$IMAGE:$IMAGE_TAG" > /dev/null 2>&1 && break
-        echo "waiting for $IMAGE:$IMAGE_TAG ($i/40)"; sleep 15
-      done
-      docker manifest inspect "$IMAGE:$IMAGE_TAG" > /dev/null
-    # sudoers allows docker as devops but not passing env, so pin the tag in the file itself
-    - compose() { sed "s/\${IMAGE_TAG:-latest}/$IMAGE_TAG/" deploy/docker-compose.prod.yml | sudo -u devops docker compose -f - --project-directory "$DEPLOY_DIR" "$@"; }
-    - compose pull
-    - compose up -d
+      ref="$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+      if ! docker image inspect "$ref" > /dev/null 2>&1; then
+        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+        docker pull "$ref"
+      fi
+    # sudoers allows docker as devops but not passing env, so pin image and tag in the file itself
+    - compose() { sed -e "s|\${IMAGE:-[^}]*}|$CI_REGISTRY_IMAGE|" -e "s/\${IMAGE_TAG:-latest}/$IMAGE_TAG/" deploy/docker-compose.prod.yml | sudo -u devops docker compose -f - --project-directory "$DEPLOY_DIR" "$@"; }
+    - compose up -d --pull never
     - |
       for i in $(seq 1 24); do
         state=$(docker inspect -f '{{.State.Health.Status}}' tg-git-notifications-bot 2>/dev/null || echo missing)
         echo "health: $state"
-        [ "$state" = healthy ] && exit 0
+        [ "$state" = healthy ] && break
         sleep 5
       done
-      docker logs --tail 50 tg-git-notifications-bot
-      exit 1
+      [ "$state" = healthy ] || { docker logs --tail 50 tg-git-notifications-bot; exit 1; }
+    # keep only the running tag on the 1 GB host; older tags live in the registry for rollback
+    - docker images "$CI_REGISTRY_IMAGE" --format '{{.Repository}}:{{.Tag}}' | grep -v -e ":$IMAGE_TAG\$" -e ':latest$' | xargs -r docker rmi > /dev/null || true
+    - docker image prune -f > /dev/null
+  after_script:
+    - rm -rf "$DOCKER_CONFIG"
   environment:
     name: production
+
+# Ship the deployed image to the registry for rollback; allow_failure — the next publish re-sends missing blobs.
+publish:
+  stage: publish
+  tags: [deploy]
+  needs: [deploy]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  allow_failure: true
+  timeout: 3h
+  variables:
+    GIT_STRATEGY: none
+    DOCKER_CONFIG: /tmp/tg-git-notifications-bot-publish-$CI_JOB_ID
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    # the registry intermittently answers "blob unknown to registry" on the manifest push; a retry passes
+    - |
+      push() { for i in 1 2 3; do docker push -q "$1" && return 0; echo "push $1 failed (attempt $i), retrying"; sleep 10; done; return 1; }
+      push "$CI_REGISTRY_IMAGE:${CI_COMMIT_TAG#v}" && push "$CI_REGISTRY_IMAGE:latest"
+  after_script:
+    - rm -rf "$DOCKER_CONFIG"
