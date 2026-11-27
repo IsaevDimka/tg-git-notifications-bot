@@ -84,6 +84,7 @@ class Thread:
     resolvable: bool
     resolved: bool
     notes: tuple[Note, ...]
+    resolved_by: str | None = None
 
 
 @dataclass(frozen=True)

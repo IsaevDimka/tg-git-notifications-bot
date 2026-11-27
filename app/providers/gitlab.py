@@ -1,6 +1,6 @@
 """GitLab REST v4 — gitlab.com and self-hosted instances alike."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -150,7 +150,19 @@ class GitLab:
                 )
                 for n in raw
             )
-            threads.append(Thread(id=disc["id"], resolvable=resolvable, resolved=resolved, notes=notes))
+            resolved_by = None
+            if resolved:
+                # GitLab attributes the discussion resolution to the last note resolved.
+                last_resolved = max(
+                    (n for n in raw if n.get("resolvable")),
+                    key=lambda n: (
+                        parse_ts(n["resolved_at"]) if n.get("resolved_at") else datetime.min.replace(tzinfo=UTC)
+                    ),
+                )
+                resolved_by = (last_resolved.get("resolved_by") or {}).get("username")
+            threads.append(
+                Thread(id=disc["id"], resolvable=resolvable, resolved=resolved, notes=notes, resolved_by=resolved_by)
+            )
 
         approved = frozenset(a["user"]["username"] for a in approvals.get("approved_by", []))
         return Details(

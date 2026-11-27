@@ -111,7 +111,10 @@ async def test_details_from_graphql(gh):
              "author": {"login": "dave"}},
         ]},
         "reviewThreads": {"nodes": [
-            {"id": "PRRT_1", "isResolved": False, "comments": {"nodes": [comment(10, "me"), comment(11, "alice")]}},
+            {"id": "PRRT_1", "isResolved": True, "resolvedBy": {"login": "me"},
+             "comments": {"nodes": [comment(10, "me"), comment(11, "alice")]}},
+            {"id": "PRRT_2", "isResolved": False, "resolvedBy": None,
+             "comments": {"nodes": [comment(12, "me")]}},
         ]},
         "comments": {"nodes": [comment(20, None)]},
         "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "FAILURE"}}}]},
@@ -122,7 +125,10 @@ async def test_details_from_graphql(gh):
     sent = json.loads(route.calls.last.request.content)
     assert sent["variables"] == {"owner": "acme", "name": "app", "number": 5}
     threads = {t.id: t for t in d.threads}
-    assert set(threads) == {"PRRT_1|10", "rv70", "ic20"}
+    assert "resolvedBy { login }" in sent["query"]
+    assert set(threads) == {"PRRT_1|10", "PRRT_2|12", "rv70", "ic20"}
+    assert threads["PRRT_1|10"].resolved_by == "me"
+    assert threads["PRRT_2|12"].resolved_by is None
     assert threads["PRRT_1|10"].resolvable and not threads["rv70"].resolvable
     assert threads["ic20"].notes[0].author == "ghost"
     assert d.approved_by == frozenset({"bob"}) and d.changes_requested_by == frozenset({"dave"})
