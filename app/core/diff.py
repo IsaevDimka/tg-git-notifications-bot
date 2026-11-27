@@ -71,7 +71,7 @@ def _resolutions(old: dict, d: Details, item: ReviewItem, me: str) -> list[Event
     for th in d.threads:
         if not th.resolvable or not th.notes or th.notes[0].author != me or th.id not in before:
             continue
-        if before[th.id] == th.resolved:
+        if before[th.id] == th.resolved or (th.resolved and th.resolved_by == me):
             continue
         kind = Kind.THREAD_RESOLVED if th.resolved else Kind.THREAD_REOPENED
         out.append(

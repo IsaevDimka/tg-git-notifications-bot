@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 from app.core.diff import diff, snapshot
 from app.models import Kind, Role
@@ -63,6 +64,16 @@ def test_my_thread_resolved_and_reopened():
     assert resolved[0].quote.id == "1"
     old2 = snapshot(details(thread("t1", *base, resolved=True)))
     assert _kinds(diff(old2, details(thread("t1", *base)), item(Role.REVIEWER), ME)) == [Kind.THREAD_REOPENED]
+
+
+def test_self_resolved_thread_is_silent():
+    own_thread = thread("t1", note(1, ME))
+    old = snapshot(details(own_thread))
+    resolved = replace(own_thread, resolved=True, resolved_by=ME)
+    assert diff(old, details(resolved), item(Role.REVIEWER), ME) == []
+
+    resolved_by_colleague = replace(resolved, resolved_by="alice")
+    assert _kinds(diff(old, details(resolved_by_colleague), item(Role.REVIEWER), ME)) == [Kind.THREAD_RESOLVED]
 
 
 def test_resolution_of_foreign_or_brand_new_threads_is_ignored():

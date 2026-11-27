@@ -117,7 +117,12 @@ async def test_details_maps_threads_approvals_and_pipeline(gl):
                                                                      head_pipeline={"status": "failed"})))
     respx.get(f"{MR}/discussions").mock(return_value=httpx.Response(200, json=[
         {"id": "d1", "notes": [gl_note(10, "me", "why?"), gl_note(11, "alice", "because")]},
-        {"id": "d2", "notes": [gl_note(12, "bob", "done", resolved=True)]},
+        {"id": "d2", "notes": [
+            {**gl_note(12, "bob", "done", resolved=True), "resolved_by": {"username": "me"},
+             "resolved_at": "2026-09-24T12:00:00Z"},
+            {**gl_note(15, "carol", resolved=True), "resolved_by": {"username": "bob"},
+             "resolved_at": "2026-09-24T11:00:00Z"},
+        ]},
         {"id": "d3", "notes": [gl_note(13, "bot", "added 1 commit", system=True)]},
         {"id": "d4", "notes": [gl_note(14, "carol", "general", resolvable=False)]},
     ]))
@@ -134,7 +139,7 @@ async def test_details_maps_threads_approvals_and_pipeline(gl):
     assert set(threads) == {"d1", "d2", "d4"}
     assert [n.id for n in threads["d1"].notes] == ["10", "11"]
     assert threads["d1"].resolvable and not threads["d1"].resolved
-    assert threads["d2"].resolved
+    assert threads["d2"].resolved and threads["d2"].resolved_by == "me"
     assert not threads["d4"].resolvable
     assert threads["d1"].notes[1].url.endswith("/merge_requests/1#note_11")
     assert d.approved_by == frozenset({"bob"})

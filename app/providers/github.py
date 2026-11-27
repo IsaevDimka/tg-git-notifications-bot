@@ -24,7 +24,12 @@ query($owner: String!, $name: String!, $number: Int!) {
       latestOpinionatedReviews(first: 50) { nodes { state author { login } } }
       reviews(last: 50) { nodes { databaseId body createdAt url author { login } } }
       reviewThreads(last: 100) {
-        nodes { id isResolved comments(first: 100) { nodes { databaseId body createdAt url author { login } } } }
+        nodes {
+          id
+          isResolved
+          resolvedBy { login }
+          comments(first: 100) { nodes { databaseId body createdAt url author { login } } }
+        }
       }
       comments(last: 100) { nodes { databaseId body createdAt url author { login } } }
       commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
@@ -162,7 +167,8 @@ class GitHub:
         for th in pr["reviewThreads"]["nodes"]:
             notes = tuple(_note(c) for c in th["comments"]["nodes"])
             if notes:
-                threads.append(Thread(f"{th['id']}|{notes[0].id}", True, th["isResolved"], notes))
+                resolved_by = (th.get("resolvedBy") or {}).get("login")
+                threads.append(Thread(f"{th['id']}|{notes[0].id}", True, th["isResolved"], notes, resolved_by))
         for rv in pr["reviews"]["nodes"]:
             if (rv.get("body") or "").strip():
                 threads.append(Thread(f"rv{rv['databaseId']}", False, False, (_note(rv),)))
