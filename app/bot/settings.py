@@ -30,8 +30,10 @@ def interval_options(min_seconds: int) -> list[int]:
 
 def apply(user: User, action: str, min_poll: int) -> dict:
     if action.startswith("k:"):
-        kind = str(Kind(action.removeprefix("k:")))
-        return {"muted_kinds": user.muted_kinds ^ {kind}}
+        kind = Kind(action.removeprefix("k:"))
+        if kind is Kind.CI_FAILED:
+            return {"ci_alerts_enabled": not user.ci_alerts_enabled}
+        return {"muted_kinds": user.muted_kinds ^ {str(kind)}}
     if action == "iv":
         options = interval_options(min_poll)
         current = user.poll_interval // 60
@@ -72,9 +74,8 @@ def apply(user: User, action: str, min_poll: int) -> dict:
 
 def settings_view(user: User) -> tuple[str, InlineKeyboardMarkup]:
     lang = user.lang
-    toggles = [
-        btn(("🔕 " if kind in user.muted_kinds else "✅ ") + t(lang, f"kind.{kind}"), f"st:k:{kind}") for kind in Kind
-    ]
+    muted = user.muted_kinds if user.ci_alerts_enabled else user.muted_kinds | {Kind.CI_FAILED}
+    toggles = [btn(("🔕 " if kind in muted else "✅ ") + t(lang, f"kind.{kind}"), f"st:k:{kind}") for kind in Kind]
     rows = [toggles[i : i + 2] for i in range(0, len(toggles), 2)]
     rows.append([btn(t(lang, "st.interval", n=user.poll_interval // 60), "st:iv")])
     digest = t(lang, "st.digest_on", time=user.digest_time) if user.digest_enabled else t(lang, "st.digest_off")

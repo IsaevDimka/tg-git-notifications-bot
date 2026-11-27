@@ -20,6 +20,7 @@ STALE_REVIEW_AFTER = timedelta(days=2)
 REMINDER_MAX_AGE = timedelta(days=30)
 REMINDERS_PER_TICK = 5  # a big backlog drains a few per poll instead of bursting
 REFRESH_EVERY = timedelta(hours=1)  # conflicts / resolutions don't always bump updated_at
+CI_REFRESH_EVERY = timedelta(minutes=5)
 
 
 @dataclass(frozen=True)
@@ -75,13 +76,15 @@ def _already_reviewed(d: Details, me: str) -> bool:
 
 
 async def _poll_item(
-    provider: Provider, store: Store, account: Account, item: ReviewItem, now: datetime
+    provider: Provider, store: Store, account: Account, item: ReviewItem, now: datetime, *, ci_alerts: bool
 ) -> tuple[list[Event], list[Event], Watched | None]:
     """Returns (events, reminders, watched-to-save)."""
     me = account.username
     old = await store.get_watched(account.id, item.key)
     unchanged = old is not None and item.updated_at <= old.updated_at_remote and item.role is old.role
-    if unchanged and now - _refreshed(old) < REFRESH_EVERY:
+    own_ci = ci_alerts and item.role is Role.AUTHOR and item.author == me
+    refresh_every = CI_REFRESH_EVERY if own_ci else REFRESH_EVERY
+    if unchanged and now - _refreshed(old) < refresh_every:
         return [], _reminders(old, now, account.synced), None
     d = await provider.details(item)
     ball = whose_ball(item, d, me)
@@ -102,8 +105,17 @@ async def _poll_item(
             became_ready = old.item.draft and not item.draft
             if became_ready and item.role is Role.REVIEWER and not _already_reviewed(d, me):
                 events.append(Event(Kind.REVIEW_REQUESTED, dedup=f"rr:{item.key}:ready", item=item, actor=item.author))
+    before = old.snapshot if old else {}
+    same_head = before.get("head_sha") == d.head_sha
+    was_failed = same_head and before.get("ci_failed", before.get("pipeline") == "failed")
+    ci_failed = d.pipeline == "failed" or (d.pipeline is None and was_failed)
+    if own_ci and account.synced and d.state == "opened" and d.pipeline == "failed" and not was_failed:
+        # The previous snapshot identifies the transition even if writing this poll's snapshot is retried.
+        previous_poll = before.get("refreshed_at", "initial")
+        events.append(Event(Kind.CI_FAILED, dedup=f"ci:{item.key}:{d.head_sha}:{previous_poll}", item=item))
     snap = {
         **snapshot(d),
+        "ci_failed": ci_failed,
         "refreshed_at": iso(now),
         "approved_by_me": me in d.approved_by,
         "rereview_since": rereview_since,
@@ -165,6 +177,8 @@ async def _mentions(provider: Provider, account: Account, now: datetime) -> tupl
 
 
 async def poll_account(provider: Provider, store: Store, account: Account, now: datetime) -> PollResult:
+    user = await store.get_user(account.tg_id)
+    ci_alerts = user is not None and user.ci_alerts_enabled
     items = list(await provider.list_items(account.username))
     listed = {i.key for i in items}
     emitted = 0
@@ -188,7 +202,7 @@ async def poll_account(provider: Provider, store: Store, account: Account, now: 
     reminders: list[Event] = []
     for item in items:
         try:
-            events, due, watched = await _poll_item(provider, store, account, item, now)
+            events, due, watched = await _poll_item(provider, store, account, item, now, ci_alerts=ci_alerts)
         except AuthError:
             raise
         except ProviderError as e:

@@ -70,6 +70,18 @@ async def test_cb_settings_persists_and_rerenders(store):
     upd.callback_query.edit_message_text.assert_awaited_once()
 
 
+async def test_ci_alerts_toggle_is_off_by_default_and_persists(store):
+    user = await make_user(store)
+    assert not user.ci_alerts_enabled
+    _, markup = settings.settings_view(user)
+    assert "🔕 CI failures on my merge requests" in [b.text for row in markup.inline_keyboard for b in row]
+    ctx = make_ctx(store)
+    await settings.cb_settings(callback_update("st:k:ci_failed", lang="en"), ctx)
+    assert (await store.get_user(1)).ci_alerts_enabled
+    await settings.cb_settings(callback_update("st:k:ci_failed", lang="en"), ctx)
+    assert not (await store.get_user(1)).ci_alerts_enabled
+
+
 async def test_cb_settings_tz_opens_picker(store):
     await make_user(store)
     ctx = make_ctx(store)

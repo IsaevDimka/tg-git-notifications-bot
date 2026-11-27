@@ -49,6 +49,7 @@ class User:
     share_load: bool = True  # appear (as numbers only) in colleagues' /load
     weekly_enabled: bool = False  # Friday report
     weekly_last: str | None = None
+    ci_alerts_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,7 @@ _USER_FIELDS = frozenset(
         "quiet_enabled", "quiet_from", "quiet_to", "quiet_weekends", "muted_kinds",
         "digest_enabled", "digest_time", "digest_last", "mute_bots", "mute_drafts", "muted_projects",
         "evening_enabled", "evening_time", "evening_last", "share_load", "weekly_enabled", "weekly_last",
+        "ci_alerts_enabled",
     }
 )
 _ACCOUNT_FIELDS = frozenset(
@@ -135,6 +137,7 @@ def _user(r) -> User:
         share_load=bool(r["share_load"]),
         weekly_enabled=bool(r["weekly_enabled"]),
         weekly_last=r["weekly_last"],
+        ci_alerts_enabled=bool(r["ci_alerts_enabled"]),
     )
 
 

@@ -4,6 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-27
+
+### Added
+- Opt-in Telegram alerts for CI failures on the latest commit of open GitLab merge requests and GitHub pull requests you authored. Enable them in `/settings`.
+
+### Fixed
+- Skip the thread resolution notification when you resolve your own review thread.
+
 ## [0.4.1] - 2026-10-28
 
 ### Changed

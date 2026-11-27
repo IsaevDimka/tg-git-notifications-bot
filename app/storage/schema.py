@@ -113,4 +113,7 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX review_turns_user ON review_turns (tg_id, ended_at);
     """,
+    """
+    ALTER TABLE users ADD COLUMN ci_alerts_enabled INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
