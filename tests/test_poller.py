@@ -60,6 +60,61 @@ async def test_unchanged_item_skips_details(store):
     assert len(calls(p, "details")) == 1
 
 
+async def test_ci_failure_is_opt_in_and_only_for_authored_requests(store):
+    acc = await make_account(store, synced=True)
+    p = FakeProvider()
+    own = item(Role.AUTHOR, 1, author="me")
+    assigned = item(Role.AUTHOR, 2, author="alice")
+    reviewing = item(Role.REVIEWER, 3, author="bob")
+    p.items = [own, assigned, reviewing]
+    for mr in p.items:
+        p.details_by_key[mr.key] = details(pipeline="running", head_sha="a")
+    await poll_account(p, store, acc, NOW)
+
+    for mr in p.items:
+        p.details_by_key[mr.key] = details(pipeline="failed", head_sha="a")
+    await poll_account(p, store, acc, NOW + timedelta(hours=1))
+    assert all(ev.kind is not Kind.CI_FAILED for ev in await events(store))
+
+    await store.update_user(1, ci_alerts_enabled=True)
+    for mr in p.items:
+        p.details_by_key[mr.key] = details(pipeline="failed", head_sha="b")
+    await poll_account(p, store, acc, NOW + timedelta(hours=2))
+    failures = [ev for ev in await events(store) if ev.kind is Kind.CI_FAILED]
+    assert [ev.item for ev in failures] == [own]
+
+
+async def test_ci_failures_are_detected_without_mr_updates_and_deduplicated(store):
+    acc = await make_account(store, synced=False)
+    await store.update_user(1, ci_alerts_enabled=True)
+    p = FakeProvider()
+    mr = item(Role.AUTHOR, 1, author="me")
+    p.items = [mr]
+
+    async def poll_at(minutes, pipeline, sha="a"):
+        p.details_by_key[mr.key] = details(pipeline=pipeline, head_sha=sha)
+        await poll_account(p, store, acc, NOW + timedelta(minutes=minutes))
+
+    await poll_at(0, "failed")
+    assert await events(store) == []
+    await store.update_account(acc.id, synced=1)
+    acc = await store.get_account(acc.id)
+
+    await poll_at(5, "running")
+    await poll_at(10, "failed")
+    await poll_at(15, "failed")
+    await poll_at(20, None)
+    await poll_at(25, "failed")
+    assert [ev.kind for ev in await events(store)] == [Kind.CI_FAILED]
+
+    await poll_at(30, "success")
+    await poll_at(35, "failed")
+    await poll_at(40, "failed", "b")
+    failures = await events(store)
+    assert [ev.kind for ev in failures] == [Kind.CI_FAILED] * 3
+    assert len({ev.dedup for ev in failures}) == 3
+
+
 async def test_changed_item_is_diffed(store):
     acc = await make_account(store, synced=True)
     p = FakeProvider()

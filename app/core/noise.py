@@ -14,6 +14,8 @@ def is_bot(username: str) -> bool:
 
 
 def is_noise(user: User, ev: Event) -> bool:
+    if ev.kind is Kind.CI_FAILED and not user.ci_alerts_enabled:
+        return True
     it = ev.item
     if it and it.project in user.muted_projects:
         return True

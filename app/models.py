@@ -32,6 +32,7 @@ class Kind(StrEnum):
     MERGED = "merged"
     CLOSED = "closed"
     CONFLICT = "conflict"
+    CI_FAILED = "ci_failed"
     WAITING_ON_REVIEWER = "waiting_on_reviewer"
     TOKEN_BROKEN = "token_broken"
     REREVIEW = "rereview"

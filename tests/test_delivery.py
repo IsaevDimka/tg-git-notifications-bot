@@ -77,6 +77,19 @@ async def test_muted_kinds_are_swallowed(store):
     assert bot.sent == [] and await store.pending_events(1, NOW) == []
 
 
+async def test_ci_failure_delivery_respects_opt_in(store):
+    acc, user = await setup(store)
+    bot = FakeBot()
+    await store.add_event(1, acc.id, Event(Kind.CI_FAILED, dedup="ci:a", item=item()), NOW)
+    assert await deliver_user(bot, store, user, NOW) == 0
+    assert await store.pending_events(1, NOW) == []
+    assert await store.unread_counts(1) == {}
+
+    await store.add_event(1, acc.id, Event(Kind.CI_FAILED, dedup="ci:b", item=item()), NOW)
+    assert await deliver_user(bot, store, replace(user, ci_alerts_enabled=True), NOW) == 1
+    assert "CI failed on your branch" in bot.sent[0][1]
+
+
 async def test_rejected_message_is_dropped_not_retried(store):
     acc, user = await setup(store)
     await store.add_event(1, acc.id, comment(1, "BROKEN"), NOW)
