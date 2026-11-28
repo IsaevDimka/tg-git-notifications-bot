@@ -1,7 +1,9 @@
 """/mr and /inbox — watched merge requests, coloured by whose move it is."""
 
 import html
+from collections.abc import Sequence
 from datetime import datetime
+from urllib.parse import urlencode
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
@@ -14,10 +16,11 @@ from app.core.noise import visible
 from app.core.render import NO_PREVIEW, clip, esc, fmt_age
 from app.i18n import t
 from app.models import Ball, Role
-from app.storage.store import User, Watched
+from app.storage.store import Account, User, Watched
 
 BALL_ICON = {Ball.ME: "🔴", Ball.THEM: "⚪", Ball.NONE: "✅"}
 CI_LABEL = {"success": "CI ✓", "failed": "CI ✗", "running": "CI …"}
+MR_PAGE_SIZE = 10
 LIST_MAX = 15
 INBOX_BUTTONS = 12
 
@@ -26,9 +29,10 @@ def _ordered(ws: list[Watched]) -> list[Watched]:
     return sorted(ws, key=lambda w: (w.ball is not Ball.ME, -w.item.updated_at.timestamp()))
 
 
-def mr_line(w: Watched, lang: str, now: datetime, unread: int = 0) -> str:
+def mr_line(w: Watched, lang: str, now: datetime, unread: int = 0, *, show_host: bool = False) -> str:
     it, snap = w.item, w.snapshot
-    meta = [f"<code>{esc(it.project_short)}</code>", fmt_age(now - it.created_at, lang)]
+    project = f"{it.host}/{it.project}" if show_host else it.project
+    meta = [f"<code>{esc(clip(project, 90))}</code>", fmt_age(now - it.created_at, lang)]
     approved, left = len(snap.get("approved_by", ())), snap.get("approvals_left")
     if left:
         meta.append(f"👍 {approved}/{approved + left}")
@@ -43,35 +47,76 @@ def mr_line(w: Watched, lang: str, now: datetime, unread: int = 0) -> str:
     if unread:
         meta.append(t(lang, "inbox.unread", count=unread))
     draft = "📝 " if it.draft else ""
-    link = f'<a href="{html.escape(it.url)}">{it.ref}</a> {esc(clip(it.title, 60))}'
-    return f"{BALL_ICON[w.ball]} {draft}{link}\n      " + " · ".join(meta)
+    title = f"{it.ref} · {esc(clip(it.title, 80))}"
+    link = f'<a href="{html.escape(it.url)}">{title}</a>'
+    return f"{BALL_ICON[w.ball]} {draft}{link}\n    " + " · ".join(meta)
 
 
-def render_mr_list(ws: list[Watched], tab: str, lang: str, now: datetime) -> str:
+def render_mr_list(
+    ws: list[Watched], tab: str, lang: str, now: datetime, *, page: int = 1
+) -> tuple[str, int, int]:
     role = Role.REVIEWER if tab == "rev" else Role.AUTHOR
     rows = _ordered([w for w in ws if w.role is role])
     hidden = 0
-    if tab == "rev":  # like GitLab's "reviewer = me AND not approved by me" filter
+    if tab == "rev":
         hidden = sum(1 for w in rows if w.snapshot.get("approved_by_me"))
         rows = [w for w in rows if not w.snapshot.get("approved_by_me")]
     footer = [t(lang, "mr.hidden_approved", count=hidden)] if hidden else []
     if not rows:
-        return "\n".join([t(lang, "mr.empty_review" if tab == "rev" else "mr.empty_own"), *footer])
+        empty = t(lang, "mr.empty_review" if tab == "rev" else "mr.empty_own")
+        return "\n".join([empty, *footer]), 1, 1
+
+    pages = (len(rows) + MR_PAGE_SIZE - 1) // MR_PAGE_SIZE
+    page = min(max(page, 1), pages)
     title = t(lang, "mr.tab_review" if tab == "rev" else "mr.tab_own")
-    lines = [f"<b>{title}</b> ({len(rows)})", t(lang, "mr.legend"), ""]
-    lines += [mr_line(w, lang, now) for w in rows[:LIST_MAX]]
-    if len(rows) > LIST_MAX:
-        lines.append(t(lang, "mr.more", count=len(rows) - LIST_MAX))
-    if footer:
-        lines += ["", *footer]
-    return "\n".join(lines)
+    header = [f"<b>{title}</b> ({len(rows)})", t(lang, "mr.legend")]
+    if pages > 1:
+        header.append(t(lang, "mr.page", page=page, pages=pages))
+    show_host = len({w.item.host for w in rows}) > 1
+    start = (page - 1) * MR_PAGE_SIZE
+    entries = [mr_line(w, lang, now, show_host=show_host) for w in rows[start : start + MR_PAGE_SIZE]]
+    return "\n\n".join(["\n".join(header), *entries, *footer]), page, pages
 
 
-def mr_tabs(tab: str, lang: str) -> InlineKeyboardMarkup:
+def mr_tabs(
+    tab: str, lang: str, *, page: int = 1, pages: int = 1, accounts: Sequence[Account] = ()
+) -> InlineKeyboardMarkup:
     def label(key: str, name: str) -> str:
         return ("• " if tab == name else "") + t(lang, key)
 
-    return InlineKeyboardMarkup([[btn(label("mr.tab_review", "rev"), "mr:rev"), btn(label("mr.tab_own", "own"), "mr:own")]])
+    rows = [[btn(label("mr.tab_review", "rev"), "mr:rev"), btn(label("mr.tab_own_short", "own"), "mr:own")]]
+    nav = []
+    if page > 1:
+        nav.append(btn(t(lang, "mr.prev"), f"mr:{tab}:{page - 1}"))
+    if page < pages:
+        nav.append(btn(t(lang, "mr.next"), f"mr:{tab}:{page + 1}"))
+    if nav:
+        rows.append(nav)
+
+    gitlab_accounts = [account for account in accounts if account.kind == "gitlab"]
+    for account in gitlab_accounts:
+        host = account.host if len(gitlab_accounts) > 1 else "GitLab"
+        base = {"scope": "all", "state": "opened"}
+        if tab == "rev":
+            searches = [
+                ("mr.gitlab_review", {
+                    "reviewer_username": account.username,
+                    "not[approved_by_usernames][]": account.username,
+                }),
+            ]
+        else:
+            searches = [
+                ("mr.gitlab_author", {"author_username": account.username}),
+                ("mr.gitlab_assignee", {"assignee_username": account.username}),
+            ]
+        rows.append([
+            InlineKeyboardButton(
+                t(lang, key, host=host),
+                url=f"https://{account.host}/dashboard/merge_requests?{urlencode(base | filters)}",
+            )
+            for key, filters in searches
+        ])
+    return InlineKeyboardMarkup(rows)
 
 
 def render_inbox(
@@ -81,12 +126,14 @@ def render_inbox(
     if not mine and not mention_count:
         return t(lang, "inbox.empty"), [], True
     lines = [t(lang, "inbox.header", count=len(mine)), ""]
-    lines += [mr_line(w, lang, now, counts.get(w.key, 0)) for w in mine[:LIST_MAX]]
+    show_host = len({w.item.host for w in mine}) > 1
+    for w in mine[:LIST_MAX]:
+        lines.extend([mr_line(w, lang, now, counts.get(w.key, 0), show_host=show_host), ""])
     if len(mine) > LIST_MAX:
         lines.append(t(lang, "mr.more", count=len(mine) - LIST_MAX))
     if mention_count:
-        lines += ["", t(lang, "inbox.mentions", count=mention_count)]
-    return "\n".join(lines), mine[:INBOX_BUTTONS], False
+        lines.append(t(lang, "inbox.mentions", count=mention_count))
+    return "\n".join(lines).rstrip(), mine[:INBOX_BUTTONS], False
 
 
 def inbox_keyboard(shown: list[Watched], lang: str) -> InlineKeyboardMarkup:
@@ -103,12 +150,14 @@ async def safe_edit(q, text: str, markup) -> None:
         pass
 
 
-async def _mr_view(ctx, user: User, tab: str):
+async def _mr_view(ctx, user: User, tab: str, *, page: int = 1):
     st = deps.store(ctx)
-    if not await st.accounts_for(user.tg_id):
+    accounts = await st.accounts_for(user.tg_id)
+    if not accounts:
         return t(user.lang, "mr.no_accounts"), None
     ws = visible(user, await st.watched_for_user(user.tg_id))
-    return render_mr_list(ws, tab, user.lang, timeutil.now()), mr_tabs(tab, user.lang)
+    text, page, pages = render_mr_list(ws, tab, user.lang, timeutil.now(), page=page)
+    return text, mr_tabs(tab, user.lang, page=page, pages=pages, accounts=accounts)
 
 
 async def cmd_mr(update, ctx) -> None:
@@ -137,7 +186,11 @@ async def cb_mr(update, ctx) -> None:
     user = await access.current_user(update, ctx)
     if user is None:
         return
-    text, markup = await _mr_view(ctx, user, "own" if q.data == "mr:own" else "rev")
+    tab, _, requested_page = q.data.removeprefix("mr:").partition(":")
+    if tab not in ("rev", "own"):
+        return
+    page = int(requested_page) if requested_page.isascii() and requested_page.isdecimal() else 1
+    text, markup = await _mr_view(ctx, user, tab, page=page)
     await safe_edit(q, text, markup)
 
 

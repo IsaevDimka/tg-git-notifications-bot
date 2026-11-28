@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlsplit
+
 from app.bot import views
 from app.models import Ball, Event, Kind, Role
 from app.storage.store import Watched
@@ -14,6 +16,8 @@ def test_mr_line_shows_state():
     w = watched(42, snapshot={"approved_by": ["bob"], "open_threads": 2, "pipeline": "failed"}, draft=True)
     line = views.mr_line(w, "en", NOW)
     assert line.startswith("🔴 📝 ")
+    assert '!42 · Add login</a>\n' in line
+    assert '<code>g/app</code>' in line
     assert "!42" in line and "👍 1" in line and "💬 2" in line and "CI ✗" in line and "4 d" in line
 
 
@@ -28,18 +32,32 @@ def test_mr_list_splits_tabs_and_orders_my_moves_first():
         watched(2, ball=Ball.ME, updated="2026-09-23T11:00:00Z"),
         watched(3, role=Role.AUTHOR, ball=Ball.THEM, author="me"),
     ]
-    text = views.render_mr_list(ws, "rev", "en", NOW)
+    text, _, _ = views.render_mr_list(ws, "rev", "en", NOW)
     assert text.index("!2") < text.index("!1")
     assert "!3" not in text
-    assert "!3" in views.render_mr_list(ws, "own", "en", NOW)
+    own, _, _ = views.render_mr_list(ws, "own", "en", NOW)
+    assert "!3" in own
+    assert "\n\n⚪" in text
 
 
-def test_mr_list_empty_and_capped():
-    assert "Nothing waiting" in views.render_mr_list([], "rev", "en", NOW)
-    many = [watched(i) for i in range(1, 21)]
-    text = views.render_mr_list(many, "rev", "en", NOW)
-    assert "…and 5 more" in text
-    assert len(text) < 4096
+def test_mr_list_empty_and_paginated():
+    empty, page, pages = views.render_mr_list([], "rev", "en", NOW)
+    assert "Nothing waiting" in empty and (page, pages) == (1, 1)
+    many = [watched(i) for i in range(1, 24)]
+    first, page, pages = views.render_mr_list(many, "rev", "en", NOW)
+    assert (page, pages) == (1, 3) and "Page 1 of 3" in first
+    assert "!10 ·" in first and "!11 ·" not in first
+    last, page, pages = views.render_mr_list(many, "rev", "en", NOW, page=99)
+    assert (page, pages) == (3, 3) and "Page 3 of 3" in last
+    assert "!21 ·" in last and "!23 ·" in last and "!20 ·" not in last
+
+
+def test_mr_list_distinguishes_same_ref_across_gitlab_hosts():
+    ws = [watched(43, host="gitlab.a.example"), watched(43, host="gitlab.b.example")]
+    text, _, _ = views.render_mr_list(ws, "rev", "en", NOW)
+    assert text.count("!43 ·") == 2
+    assert "<code>gitlab.a.example/g/app</code>" in text
+    assert "<code>gitlab.b.example/g/app</code>" in text
 
 
 def test_mr_tabs_mark_active():
@@ -86,6 +104,48 @@ async def test_cmd_mr_lists_watched(store):
     assert callbacks(call.kwargs["reply_markup"]) == ["mr:rev", "mr:own"]
 
 
+async def test_mr_search_links_use_each_gitlab_account(store):
+    await _setup(store)
+    await store.add_account(1, "gitlab", "gitlab.lucky-team.pro", "d.isaev", "secret", NOW)
+    await store.add_account(1, "github", "github.com", "octocat", "secret", NOW)
+    ctx = make_ctx(store)
+    for cmd, expected in (
+        (views.cmd_mr, {"reviewer_username", "not[approved_by_usernames][]"}),
+        (views.cmd_my, {"author_username", "assignee_username"}),
+    ):
+        upd = message_update("/mr", lang="en")
+        await cmd(upd, ctx)
+        kb = upd.effective_chat.send_message.await_args.kwargs["reply_markup"]
+        links = [urlsplit(b.url) for row in kb.inline_keyboard for b in row if b.url]
+        assert {url.netloc for url in links} == {"gitlab.example.com", "gitlab.lucky-team.pro"}
+        lucky = [url for url in links if url.netloc == "gitlab.lucky-team.pro"]
+        assert all(url.scheme == "https" and url.path == "/dashboard/merge_requests" for url in lucky)
+        filters = [parse_qs(url.query) for url in lucky]
+        assert set().union(*(f.keys() for f in filters)) == {"scope", "state"} | expected
+        assert all(f["scope"] == ["all"] and f["state"] == ["opened"] for f in filters)
+        assert all(value == ["d.isaev"] for f in filters for key, value in f.items() if key in expected)
+        assert len(lucky) == (1 if cmd is views.cmd_mr else 2)
+
+
+async def test_cb_mr_navigates_review_pages(store):
+    acc = await _setup(store)
+    for i in range(1, 12):
+        await store.put_watched(watched(i, account_id=acc.id))
+    ctx = make_ctx(store)
+    upd = message_update("/mr", lang="en")
+    await views.cmd_mr(upd, ctx)
+    call = upd.effective_chat.send_message.await_args
+    assert "Page 1 of 2" in call.args[0]
+    assert "mr:rev:2" in callbacks(call.kwargs["reply_markup"])
+
+    upd = callback_update("mr:rev:2", lang="en")
+    await views.cb_mr(upd, ctx)
+    call = upd.callback_query.edit_message_text.await_args
+    assert "Page 2 of 2" in call.args[0]
+    assert "mr:rev:1" in callbacks(call.kwargs["reply_markup"])
+    assert "mr:rev:3" not in callbacks(call.kwargs["reply_markup"])
+
+
 async def test_cb_inbox_marks_item_and_all_read(store):
     acc = await _setup(store)
     w = watched(7, account_id=acc.id)
@@ -123,10 +183,10 @@ async def test_cmd_my_opens_own_tab(store):
 
 def test_review_tab_hides_what_i_already_approved():
     ws = [watched(1), watched(2, ball=Ball.NONE, snapshot={"approved_by_me": True})]
-    text = views.render_mr_list(ws, "rev", "en", NOW)
+    text, _, _ = views.render_mr_list(ws, "rev", "en", NOW)
     assert "!1" in text and "!2" not in text
     assert "Already approved by you: 1" in text
-    only_approved = views.render_mr_list([ws[1]], "rev", "en", NOW)
+    only_approved, _, _ = views.render_mr_list([ws[1]], "rev", "en", NOW)
     assert "Nothing waiting" in only_approved and "Already approved by you: 1" in only_approved
 
 
