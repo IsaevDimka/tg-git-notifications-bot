@@ -4,6 +4,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: Se
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-28
+
+### Added
+- Open the GitLab dashboard from `/mr` and `/my` with review, author, or assignee filters for each connected GitLab account.
+- Browse merge requests in pages of 10 with previous and next buttons.
+
+### Changed
+- Give merge request entries more space, link the whole title, and show the project path and host when needed.
+
 ## [0.5.0] - 2026-11-27
 
 ### Added
